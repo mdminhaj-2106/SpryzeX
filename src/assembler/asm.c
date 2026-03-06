@@ -2,7 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "asm.h"
+#include "state.h"
 #include "utils.h"
+#include "parser.h"
+#include "pass1.h"
 
 
 
