@@ -30,28 +30,34 @@ void pass1_build_symbols(ParsedLine program[], int count)
 
             if(inst == NULL)
             {
-                printf("Error: invalid instruction '%s' at line %d\n",
-                       program[i].mnemonic,
-                       program[i].line_number);
+                char msg[256];
+                sprintf(msg, "Error: invalid instruction '%s'", program[i].mnemonic);
+                add_log_entry(msg, program[i].line_number, 1);
+                printf("%s at line %d\n", msg, program[i].line_number);
             }
             else
             {
                 /* check operand rules */
                 if(inst->operand_type == 0 && strlen(program[i].operand) > 0)
                 {
-                    printf("Error: extra operand at line %d\n",
-                           program[i].line_number);
+                    char msg[256];
+                    sprintf(msg, "Error: extra operand");
+                    add_log_entry(msg, program[i].line_number, 1);
+                    printf("%s at line %d\n", msg, program[i].line_number);
                 }
 
                 if(inst->operand_type != 0 && strlen(program[i].operand) == 0)
                 {
-                    printf("Error: missing operand at line %d\n",
-                           program[i].line_number);
+                    char msg[256];
+                    sprintf(msg, "Error: missing operand");
+                    add_log_entry(msg, program[i].line_number, 1);
+                    printf("%s at line %d\n", msg, program[i].line_number);
                 }
 
                 /* record label reference */
+                char first = program[i].operand[0];
                 if(strlen(program[i].operand) > 0 &&
-                   !isdigit(program[i].operand[0]))
+                   !isdigit(first) && first != '-' && first != '+')
                 {
                     record_reference(program[i].operand,
                                      program[i].line_number);

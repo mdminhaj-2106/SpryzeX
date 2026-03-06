@@ -1,0 +1,10 @@
+Assembler Log
+=============
+
+Symbol Table:
+
+Label References:
+
+Errors and Warnings:
+[ERROR] Line 1: Error: missing operand
+[ERROR] Line -1: Error: undefined label 

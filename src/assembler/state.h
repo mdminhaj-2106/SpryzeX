@@ -7,11 +7,17 @@
 extern Symbol symbols[MAX_LABELS];
 extern int symbol_count;
 
-extern LabelReference references[1000];
+extern LabelReference references[MAX_LINES];
 extern int reference_count;
 
 extern Instruction instruction_table[];
 extern int instruction_count;
 
-#endif
+extern unsigned int machine_code[MAX_LINES];
+extern int machine_count;
 
+extern LogEntry log_entries[MAX_ERRORS];
+extern int log_count;
+extern int error_occurred;
+
+#endif
