@@ -1,0 +1,11 @@
+Assembler Log
+=============
+
+Symbol Table:
+start                0000 (line 1)
+
+Label References:
+
+Errors and Warnings:
+[ERROR] Line 2: Error: duplicate label start
+[WARNING] Line 1: Warning: label 'start' defined but never used

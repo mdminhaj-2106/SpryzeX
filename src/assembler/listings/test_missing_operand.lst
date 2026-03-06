@@ -1,0 +1,4 @@
+Line	Addr	Machine Code	Source
+----	----	------------	------
+1	0000	00000000	ldc
+2	0001	00000012	HALT
