@@ -25,7 +25,12 @@ void pass2_generate_code(ParsedLine program[], int count)
 
         program[i].machine_code = code;
         program[i].has_machine_code = 1;
-        machine_code[machine_count++] = code;
+
+        if (strcmp(program[i].mnemonic, "SET") != 0) {
+            machine_code[machine_count++] = code;
+        } else {
+            program[i].has_machine_code = 0; // Don't show in listing as machine code
+        }
     }
 }
 
@@ -144,5 +149,6 @@ void write_log_file(const char *filename)
         }
     }
 
-    fclose(file);    printf("Log file written to %s\n", filename);
+    fclose(file);
+    printf("Log file written to %s\n", filename);
 }

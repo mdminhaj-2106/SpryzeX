@@ -6,6 +6,51 @@
 #include "state.h"
 #include "utils.h"
 
+/* humble check for digits */
+int is_digit(char c) {
+    return (c >= '0' && c <= '9');
+}
+
+/* check if label is a valid one */
+int is_valid_label(const char *label) {
+    if (!isalpha(label[0])) return 0;
+    for (int i = 1; label[i] != '\0'; i++) {
+        if (!isalnum(label[i]) && label[i] != '_') return 0;
+    }
+    return 1;
+}
+
+/* check if string is hex */
+int is_hex(const char *s) {
+    if (strlen(s) < 3) return 0;
+    if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
+        for (int i = 2; s[i] != '\0'; i++) {
+            if (!isxdigit(s[i])) return 0;
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/* check if string is octal */
+int is_octal(const char *s) {
+    if (strlen(s) < 2 || s[0] != '0') return 0;
+    for (int i = 1; s[i] != '\0'; i++) {
+        if (s[i] < '0' || s[i] > '7') return 0;
+    }
+    return 1;
+}
+
+/* check if string is decimal */
+int is_decimal(const char *s) {
+    int start = (s[0] == '-' || s[0] == '+') ? 1 : 0;
+    if (s[start] == '\0') return 0;
+    for (int i = start; s[i] != '\0'; i++) {
+        if (!isdigit(s[i])) return 0;
+    }
+    return 1;
+}
+
 /* read_source reads .asm line-line and return stores it in lines[] */
 int read_source(const char *filename, char lines[][MAX_LINE_LENGTH])
 {
@@ -76,6 +121,14 @@ void record_reference(char *label, int line)
 /* add_symbol inserts lables, address and line_number into SymbolTable */
 void add_symbol(char *label, int address, int line)
 {
+    if (!is_valid_label(label)) {
+        char msg[256];
+        sprintf(msg, "Error: invalid label name %s", label);
+        add_log_entry(msg, line, 1);
+        printf("%s at line %d\n", msg, line);
+        return;
+    }
+
     if(find_symbol(label) != -1)
     {
         char msg[256];
@@ -151,14 +204,18 @@ void add_log_entry(const char *message, int line, int is_error)
     }
 }
 
-/* Converts the operand text -> Integer */
+/* Converts the operand text -> Integer with base support */
 int resolve_operand(char *operand, int current_address, int is_branch)
 {
     int value;
 
-    /* if operand is numeric */
-    if(isdigit(operand[0]) || operand[0] == '-' || operand[0] == '+')
-    {
+    if (is_hex(operand)) {
+        value = (int)strtol(operand, NULL, 16);
+    }
+    else if (is_octal(operand)) {
+        value = (int)strtol(operand, NULL, 8);
+    }
+    else if (is_decimal(operand)) {
         value = atoi(operand);
     }
     else
@@ -169,7 +226,7 @@ int resolve_operand(char *operand, int current_address, int is_branch)
         {
             char msg[256];
             sprintf(msg, "Error: undefined label %s", operand);
-            add_log_entry(msg, -1, 1); // Line unknown here, should be passed or handled
+            add_log_entry(msg, -1, 1);
             printf("%s\n", msg);
             return 0;
         }
@@ -194,15 +251,34 @@ unsigned int encode_instruction(ParsedLine *line)
     if(inst == NULL)
         return 0;
 
+    /* Special handling for data directive */
+    if (strcmp(line->mnemonic, "data") == 0) {
+        return (unsigned int)resolve_operand(line->operand, line->address, 0);
+    }
+    
+    /* SET doesn't generate code in this architecture usually, 
+       but we can use it to define symbols. Pass1 handles it if it's a label.
+       For now, let's just return 0 for SET as it's a directive. */
+    if (strcmp(line->mnemonic, "SET") == 0) {
+        return 0;
+    }
+
     int operand = 0;
 
     if(inst->operand_type != 0)
     {
+        if (strlen(line->operand) == 0) {
+            char msg[256];
+            sprintf(msg, "Error: missing operand for instruction %s", line->mnemonic);
+            add_log_entry(msg, line->line_number, 1);
+            printf("%s at line %d\n", msg, line->line_number);
+            return 0;
+        }
         int is_branch = (inst->operand_type == 2);
         operand = resolve_operand(line->operand, line->address, is_branch);
     }
 
-    unsigned int code = (operand << 8) | inst->opcode;
+    unsigned int code = (((unsigned int)operand & 0xFFFFFF) << 8) | (inst->opcode & 0xFF);
 
     return code;
 }
@@ -217,12 +293,14 @@ void build_output_paths(char *input,
     char *dot;
 
     /* copy input path */
-    strcpy(base, input);
-
-    /* remove directory path if present */
-    char *slash = strrchr(base, '/');
-    if(slash != NULL)
-        memmove(base, slash + 1, strlen(slash));
+    const char *filename = strrchr(input, '/');
+    if (filename == NULL) {
+        filename = input;
+    } else {
+        filename++; /* skip the slash */
+    }
+    
+    strcpy(base, filename);
 
     /* remove extension */
     dot = strrchr(base, '.');
@@ -234,3 +312,4 @@ void build_output_paths(char *input,
     sprintf(log, "logs/%s.log", base);
     sprintf(lst, "listings/%s.lst", base);
 }
+

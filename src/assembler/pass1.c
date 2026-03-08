@@ -55,16 +55,34 @@ void pass1_build_symbols(ParsedLine program[], int count)
                 }
 
                 /* record label reference */
-                char first = program[i].operand[0];
                 if(strlen(program[i].operand) > 0 &&
-                   !isdigit(first) && first != '-' && first != '+')
+                   !is_digit(program[i].operand[0]) && 
+                   program[i].operand[0] != '-' && 
+                   program[i].operand[0] != '+' &&
+                   !is_hex(program[i].operand) &&
+                   !is_octal(program[i].operand))
                 {
                     record_reference(program[i].operand,
                                      program[i].line_number);
                 }
             }
 
-            pc++;
+            /* SET is a directive that doesn't consume PC space in some designs, 
+               but if it defines a label at a specific value, it's different.
+               Actually, in this ISA, SET is like "label SET value".
+               Let's assume it doesn't take space. */
+            if (strcmp(program[i].mnemonic, "SET") != 0) {
+                pc++;
+            }
+            else if (strlen(program[i].label) > 0) {
+                /* Update symbol to the SET value instead of current PC */
+                int val = resolve_operand(program[i].operand, pc, 0);
+                /* Overwrite the symbol added earlier in the loop */
+                int idx = find_symbol(program[i].label);
+                if (idx != -1) {
+                    symbols[idx].address = val;
+                }
+            }
         }
     }
 }
