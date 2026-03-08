@@ -1,6 +1,6 @@
 # SpryzeX: Modular Two-Pass Assembler & Emulator
 
-Welcome to **SpryzeX**, a minimal yet powerful toolchain for a custom MIPS-like Instruction Set Architecture (ISA). This system is designed with "Natural Raw Human Essence" — modular, readable, and highly functional.
+Welcome to **SpryzeX**, a minimal yet powerful toolchain for a custom MIPS-like Instruction Set Architecture (ISA).
 
 ---
 
@@ -94,4 +94,3 @@ To clean up all build artifacts and logs:
 make clean
 ```
 
-*Created with natural human essence for the ultimate low-level experience.*
