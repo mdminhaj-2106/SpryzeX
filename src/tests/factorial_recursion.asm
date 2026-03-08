@@ -42,4 +42,5 @@ mult_done:
 
 done:
     ldl 1       ; A = Final result
+    out
     HALT

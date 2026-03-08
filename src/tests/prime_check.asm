@@ -37,8 +37,10 @@ mod_done:
 
 is_prime:
     ldc 1
+    out
     HALT
 
 is_not_prime:
     ldc 0
+    out
     HALT

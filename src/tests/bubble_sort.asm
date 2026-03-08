@@ -18,6 +18,7 @@ inner_loop:
     
     ldc arr
     ldl 1
+    add         ; A = arr + j
     adc 1       ; A = arr+j+1
     ldnl 0      ; A = arr[j+1]
     
@@ -35,6 +36,7 @@ swap:
     
     ldc arr
     ldl 1
+    add         ; A = arr + j
     adc 1       ; A = addr_j+1
     stl 4       ; SP+4 = addr_j+1
     
@@ -55,9 +57,9 @@ next_j:
     ldl 1       ; j
     adc 1
     stl 1
-    ldc 5       ; j < 5?
+    ldc 4       ; j < 4? (array size - 1, avoids arr[j+1] out-of-bounds)
     ldl 1
-    sub         ; A = 5 - j
+    sub         ; A = 4 - j
     brlz inner_done
     brz inner_done
     br inner_loop
@@ -66,7 +68,7 @@ inner_done:
     ldl 0       ; i
     adc 1
     stl 0
-    ldc 5       ; i < 5?
+    ldc 4       ; i < 4? (array size - 1 passes)
     ldl 0
     sub
     brlz outer_done
@@ -74,6 +76,22 @@ inner_done:
     br outer_loop
 
 outer_done:
+    ; print sorted array (one per line)
+    ldc arr
+    ldnl 0
+    out
+    ldc arr
+    ldnl 1
+    out
+    ldc arr
+    ldnl 2
+    out
+    ldc arr
+    ldnl 3
+    out
+    ldc arr
+    ldnl 4
+    out
     HALT
 
 arr:

@@ -57,8 +57,11 @@ void execute_instruction(int instruction, int trace_mode) {
             break;
 
         case 4: /* ldnl */
-            cpu.A = memory[cpu.A + operand];
-            if (trace_mode == 2) trace_read(cpu.A + operand, cpu.A);
+            {
+                int address = cpu.A + operand;
+                cpu.A = memory[address];
+                if (trace_mode == 2) trace_read(address, cpu.A);
+            }
             if (trace_mode == 1) printf("ldnl %d\n", operand);
             break;
 
@@ -142,6 +145,18 @@ void execute_instruction(int instruction, int trace_mode) {
             if (trace_mode == 1) printf("HALT\n");
             printf("HALT reached at PC=%08X\n", cpu.PC - 1);
             return;
+
+        case 21: /* out */
+            if (trace_mode == 1) printf("out\n");
+            printf("%d\n", cpu.A);
+            fflush(stdout);
+            break;
+
+        case 22: /* outc */
+            if (trace_mode == 1) printf("outc\n");
+            putchar(cpu.A & 0xFF);
+            fflush(stdout);
+            break;
 
         default:
             printf("Error: Unknown opcode %d at PC=%08X\n", opcode, cpu.PC - 1);

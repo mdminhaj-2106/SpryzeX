@@ -10,4 +10,5 @@ ldc 2
 shl         ; A=25 << 2 = 100
 ldc 1
 shr         ; A=100 >> 1 = 50
+out
 HALT

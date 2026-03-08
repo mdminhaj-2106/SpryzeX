@@ -52,6 +52,8 @@ Instruction instruction_table[] = {
     {"brlz", 16, 2},
     {"br", 17, 2},
     {"HALT", 18, 0},
+    {"out", 21, 0},
+    {"outc", 22, 0},
     {"data", 19, 1},
     {"SET", 20, 1}
 };

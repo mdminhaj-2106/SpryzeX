@@ -48,4 +48,5 @@ loop_start:
     
 done:
     ldl 0       ; Final sum in A
+    out
     HALT

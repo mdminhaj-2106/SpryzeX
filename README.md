@@ -76,6 +76,8 @@ A modular CPU simulation with:
 | 16     | `brlz`   | 2    | Branch if A < 0 |
 | 17     | `br`     | 2    | Unconditional Branch |
 | 18     | `HALT`   | 0    | Stop execution |
+| 21     | `out`    | 0    | Print A as signed integer (newline) |
+| 22     | `outc`   | 0    | Print low 8 bits of A as a character |
 
 ---
 
@@ -93,4 +95,3 @@ To clean up all build artifacts and logs:
 ```bash
 make clean
 ```
-

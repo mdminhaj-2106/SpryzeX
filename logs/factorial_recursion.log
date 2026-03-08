@@ -1,0 +1,17 @@
+Assembler Log
+=============
+
+Symbol Table:
+fact_loop            0004 (line 8)
+mult_loop            000C (line 20)
+mult_done            0016 (line 34)
+done                 001C (line 43)
+
+Label References:
+done                 (line 10)
+mult_done            (line 22)
+mult_loop            (line 32)
+fact_loop            (line 41)
+
+Errors and Warnings:
+No errors or warnings found.

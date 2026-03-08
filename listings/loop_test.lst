@@ -1,0 +1,54 @@
+Line	Addr	Machine Code	Source
+----	----	------------	------
+1	    	        	; Loop Test: Calculates sum of numbers 1 to 10
+2	    	        	; Sum should be 55 (0x37)
+3	    	        	
+4	0000	00000000	ldc 0           ; Initialize sum = 0
+5	0001	00000003	stl 0           ; sum at [SP+0]
+6	    	        	
+7	0002	00000A00	ldc 10          ; Initialize counter = 10
+8	0003	        	loop:
+9	0003	00000002	    ldl 0       ; sum -> A, counter -> B
+10	0004	00000006	    add         ; sum = sum + counter
+11	0005	00000003	    stl 0       ; store new sum
+12	    	        	    
+13	0006	FFFFFF00	    ldc -1
+14	0007	00000001	    adc 0       ; subtract 1 from counter? no, adc adds to A
+15	    	        	    ; correct way to decrement B(counter):
+16	    	        	    ; A is sum, B is counter
+17	    	        	    ; load counter, sub 1, branch
+18	    	        	    
+19	0008	00000002	    ldl 0       ; A = sum
+20	0009	0000000C	    sp2a        ; A = SP, B = sum
+21	000A	00000100	    ldc 1       ; A = 1, B = SP
+22	000B	00000006	    add         ; A = SP+1
+23	    	        	    ; wait, this ISA is tricky. 
+24	    	        	    ; Let's re-do simple loop.
+25	    	        	    
+26	    	        	    ; SP+0: sum
+27	    	        	    ; SP+1: counter
+28	    	        	    
+29	000C	00000000	    ldc 0
+30	000D	00000003	    stl 0       ; sum=0
+31	000E	00000A00	    ldc 10
+32	000F	00000103	    stl 1       ; counter=10
+33	    	        	    
+34	0010	        	loop_start:
+35	0010	00000102	    ldl 1       ; A=counter
+36	0011	0000080F	    brz done    ; if counter == 0, end
+37	    	        	    
+38	0012	00000002	    ldl 0       ; A=sum, B=counter
+39	0013	00000102	    ldl 1       ; A=counter, B=sum
+40	0014	00000006	    add         ; A=sum+counter
+41	0015	00000003	    stl 0       ; sum = sum+counter, A=sum(old)
+42	    	        	    
+43	0016	00000102	    ldl 1       ; A=counter
+44	0017	FFFFFF01	    adc -1      ; A=counter-1
+45	0018	00000103	    stl 1       ; counter = counter-1
+46	    	        	    
+47	0019	FFFFF611	    br loop_start
+48	    	        	    
+49	001A	        	done:
+50	001A	00000002	    ldl 0       ; Final sum in A
+51	001B	00000015	    out
+52	001C	00000012	    HALT
