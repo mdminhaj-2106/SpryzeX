@@ -1,165 +1,67 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "../assembler/state.h"
+#include <string.h>
 #include "cpu.h"
 
-int memory[MEM_SIZE];
-CPU cpu;
-
-/* loads the .o file */
-int load_object(const char *filename)
-{
-    FILE *file = fopen(filename, "rb");
-
-    if(!file)
-    {
-        printf("Cannot open object file\n");
-        return -1;
-    }
-
-    int count = 0;
-
-    while(fread(&memory[count], sizeof(int), 1, file))
-    {
-        count++;
-    }
-
-    fclose(file);
-
-    return count;
-}
-
-
-/* executes the instructions */
-void execute(int opcode, int operand)
-{
-    switch(opcode)
-    {
-        case 0: /* ldc */
-            cpu.B = cpu.A;
-            cpu.A = operand;
-            break;
-
-        case 1: /* adc */
-            cpu.A = cpu.A + operand;
-            break;
-
-        case 2: /* ldl */
-            cpu.B = cpu.A;
-            cpu.A = memory[cpu.SP + operand];
-            break;
-
-        case 3: /* stl */
-            memory[cpu.SP + operand] = cpu.A;
-            cpu.A = cpu.B;
-            break;
-
-        case 4: /* ldnl */
-            cpu.A = memory[cpu.A + operand];
-            break;
-
-        case 5: /* stnl */
-            memory[cpu.A + operand] = cpu.B;
-            break;
-
-        case 6: /* add */
-            cpu.A = cpu.B + cpu.A;
-            break;
-
-        case 7: /* sub */
-            cpu.A = cpu.B - cpu.A;
-            break;
-
-        case 8: /* shl */
-            cpu.A = cpu.B << cpu.A;
-            break;
-
-        case 9: /* shr */
-            cpu.A = cpu.B >> cpu.A;
-            break;
-
-        case 10: /* adj */
-            cpu.SP = cpu.SP + operand;
-            break;
-
-        case 11: /* a2sp */
-            cpu.SP = cpu.A;
-            cpu.A = cpu.B;
-            break;
-
-        case 12: /* sp2a */
-            cpu.B = cpu.A;
-            cpu.A = cpu.SP;
-            break;
-
-        case 13: /* call */
-            cpu.B = cpu.A;
-            cpu.A = cpu.PC;
-            cpu.PC = cpu.PC + operand;
-            break;
-
-        case 14: /* return */
-            cpu.PC = cpu.A;
-            cpu.A = cpu.B;
-            break;
-
-        case 15: /* brz */
-            if(cpu.A == 0)
-                cpu.PC = cpu.PC + operand;
-            break;
-
-        case 16: /* brlz */
-            if(cpu.A < 0)
-                cpu.PC = cpu.PC + operand;
-            break;
-
-        case 17: /* br */
-            cpu.PC = cpu.PC + operand;
-            break;
-
-        case 18: /* HALT */
-            printf("HALT reached\n");
-            exit(0);
-
-        default:
-            printf("Unknown opcode %d\n", opcode);
-            exit(1);
-    }
-}
-
-
-/* execution loop */
-void run_program()
-{
-    while(1)
-    {
-        int instruction = memory[cpu.PC++];
-
-        int opcode = instruction & 0xFF;
-        int operand = instruction >> 8;
-
-        execute(opcode, operand);
-    }
+void display_help() {
+    printf("SpryzeX Emulator - Natural Raw Human Essence\n");
+    printf("Usage: ./emu [flag] program.o\n");
+    printf("Flags:\n");
+    printf("  -trace    Show instruction trace with register states\n");
+    printf("  -read     Show memory read operations\n");
+    printf("  -write    Show memory write operations\n");
+    printf("  -before   Show memory dump before execution\n");
+    printf("  -after    Show memory dump after execution\n");
+    printf("  -help     Show this help message\n");
 }
 
 int main(int argc, char *argv[])
 {
-    if(argc != 2)
+    if(argc < 2)
     {
-        printf("Usage: %s program.o\n", argv[0]);
+        display_help();
         return 1;
     }
 
-    cpu.A = 0;
-    cpu.B = 0;
-    cpu.PC = 0;
-    cpu.SP = 0;
+    char *flag = NULL;
+    char *filename = NULL;
+    int trace_mode = 0; // 0: none, 1: trace, 2: read, 3: write
 
-    int size = load_object(argv[1]);
+    if (argc == 2) {
+        filename = argv[1];
+    } else {
+        flag = argv[1];
+        filename = argv[2];
 
-    printf("Loaded %d instructions\n", size);
+        if (strcmp(flag, "-trace") == 0) trace_mode = 1;
+        else if (strcmp(flag, "-read") == 0) trace_mode = 2;
+        else if (strcmp(flag, "-write") == 0) trace_mode = 3;
+        else if (strcmp(flag, "-before") == 0) trace_mode = 4;
+        else if (strcmp(flag, "-after") == 0) trace_mode = 5;
+        else if (strcmp(flag, "-help") == 0) { display_help(); return 0; }
+        else {
+            printf("Unknown flag: %s\n", flag);
+            display_help();
+            return 1;
+        }
+    }
 
-    run_program();
+    init_cpu();
+
+    int size = load_object(filename);
+    if (size < 0) return 1;
+
+    printf("Loaded %d instructions into memory\n", size);
+
+    if (trace_mode == 4) { // -before
+        dump_memory(size + 10);
+    }
+
+    run_cpu(0, trace_mode);
+
+    if (trace_mode == 5) { // -after
+        dump_memory(size + 10);
+    }
 
     return 0;
 }

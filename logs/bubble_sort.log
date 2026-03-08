@@ -1,0 +1,28 @@
+Assembler Log
+=============
+
+Symbol Table:
+outer_loop           0002 (line 7)
+inner_loop           0004 (line 11)
+swap                 0011 (line 29)
+next_j               0023 (line 54)
+inner_done           002C (line 65)
+outer_done           0035 (line 76)
+arr                  0036 (line 79)
+
+Label References:
+arr                  (line 13)
+arr                  (line 19)
+swap                 (line 26)
+next_j               (line 27)
+arr                  (line 31)
+arr                  (line 36)
+inner_done           (line 61)
+inner_done           (line 62)
+inner_loop           (line 63)
+outer_done           (line 72)
+outer_done           (line 73)
+outer_loop           (line 74)
+
+Errors and Warnings:
+No errors or warnings found.

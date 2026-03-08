@@ -51,7 +51,9 @@ Instruction instruction_table[] = {
     {"brz", 15, 2},
     {"brlz", 16, 2},
     {"br", 17, 2},
-    {"HALT", 18, 0}
+    {"HALT", 18, 0},
+    {"data", 19, 1},
+    {"SET", 20, 1}
 };
 
 int instruction_count = sizeof(instruction_table) / sizeof(Instruction);
@@ -97,12 +99,11 @@ int main(int argc, char *argv[])
     printf("Parsing complete\n");
     
     pass1_build_symbols(program, line_count);
-    print_symbol_table();
 
     check_undefined_labels();
     check_unused_labels();
     
-    printf("Pass1 Build complete\n");
+    printf("Pass 1 complete\n");
 
     /* build output paths */
     char obj_path[256];
@@ -125,7 +126,7 @@ int main(int argc, char *argv[])
     write_listing_file(lst_path, program, line_count);
     write_log_file(log_path);
 
-    printf("Pass2 complete\n");
+    printf("Pass 2 complete\n");
 
     return error_occurred;
 }
