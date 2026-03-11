@@ -1,6 +1,0 @@
-Line	Addr	Machine Code	Source
-----	----	------------	------
-1	0000	00000100	loop: ldc 1
-2	0001	00000006	add
-3	0002	FFFFFD11	br loop
-4	0003	00000012	HALT
