@@ -4,7 +4,7 @@
 #include "cpu.h"
 
 void display_help() {
-    printf("SpryzeX Emulator - Natural Raw Human Essence\n");
+    printf("SpryzeX Emulator\n");
     printf("Usage: ./emu [flag] program.o\n");
     printf("Flags:\n");
     printf("  -trace    Show instruction trace with register states\n");
