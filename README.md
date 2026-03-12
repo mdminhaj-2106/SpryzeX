@@ -11,7 +11,20 @@ Use the provided `Makefile` to compile both the assembler and the emulator:
 ```bash
 make
 ```
-This generates two executables: `asm` (Assembler) and `emu` (Emulator).
+This generates three executables:
+- `asm` (Assembler)
+- `emu` (Emulator)
+- `spryzex` (Terminal IDE)
+
+### 0.5. ncurses dependency (for `spryzex`)
+- Ubuntu / Debian:
+```bash
+sudo apt install libncurses5-dev libncursesw5-dev
+```
+- macOS (Homebrew):
+```bash
+brew install ncurses
+```
 
 ### 2. Assemble a Program
 Convert your assembly (`.asm`) source into machine code (`.o`):
@@ -32,6 +45,24 @@ Execute the generated machine code:
 - `-write`: Track memory write operations.
 - `-before`: Dump memory state *before* execution.
 - `-after`: Dump memory state *after* execution.
+
+### 4. Launch the Terminal IDE
+Start the ncurses interface:
+```bash
+./spryzex [optional/path/to/file.asm]
+```
+
+Default file: `samples/code.asm`
+
+Key controls:
+- `B` Build (runs `./asm`)
+- `R` Run (runs `./emu` on generated `.o`)
+- `S` Save
+- `O` Open another file (path prompt)
+- `Q` Quit
+- `Tab` cycle output view (`LIVE`, `LOG`, `LST`, `OBJ`)
+- `F2/F3/F4/F5` direct output view select
+- `[` / `]` scroll output panel up/down
 
 ---
 
