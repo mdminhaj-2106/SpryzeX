@@ -1,36 +1,49 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -g
+CC     = gcc
+CFLAGS = -Wall -Wextra -g -std=c99
+GO     = go
 
-# Directories
-ASM_DIR = src/assembler
-EMU_DIR = src/emulator
-TUI_DIR = tui
+# ── Directories ───────────────────────────────────────────
+ASM_DIR = assembler
+EMU_DIR = emulator
+SPRYZEX_DIR = spryzex-ide
 
-# Source files
-ASM_SRCS = $(ASM_DIR)/asm.c $(ASM_DIR)/parser.c $(ASM_DIR)/pass1.c $(ASM_DIR)/pass2.c $(ASM_DIR)/utils.c
-EMU_SRCS = $(EMU_DIR)/emu.c $(EMU_DIR)/cpu.c $(EMU_DIR)/memory.c $(EMU_DIR)/trace.c
-TUI_SRCS = $(TUI_DIR)/main.c $(TUI_DIR)/ui.c $(TUI_DIR)/editor.c $(TUI_DIR)/runner.c $(TUI_DIR)/mascot.c $(TUI_DIR)/state.c
+# ── Source files ──────────────────────────────────────────
+ASM_SRCS = $(ASM_DIR)/asm.c \
+           $(ASM_DIR)/parser.c \
+           $(ASM_DIR)/pass1.c \
+           $(ASM_DIR)/pass2.c \
+           $(ASM_DIR)/utils.c
 
-# Executables
+EMU_SRCS = $(EMU_DIR)/emu.c \
+           $(EMU_DIR)/cpu.c \
+           $(EMU_DIR)/memory.c \
+           $(EMU_DIR)/trace.c
+
+# ── Executables ───────────────────────────────────────────
 ASM_EXE = asm
 EMU_EXE = emu
-TUI_EXE = spryzex
+SPRYZEX_EXE = $(SPRYZEX_DIR)/spryzex-ide
 
-NCURSES_LIBS ?= -lncurses -lpanel -lmenu
-
-all: $(ASM_EXE) $(EMU_EXE) $(TUI_EXE)
+# ═════════════════════════════════════════════════════════
+all: $(ASM_EXE) $(EMU_EXE) spryzex-ide
 
 $(ASM_EXE): $(ASM_SRCS)
-	$(CC) $(CFLAGS) -o $(ASM_EXE) $(ASM_SRCS)
+	$(CC) $(CFLAGS) -o $@ $^
 
 $(EMU_EXE): $(EMU_SRCS)
-	$(CC) $(CFLAGS) -o $(EMU_EXE) $(EMU_SRCS)
+	$(CC) $(CFLAGS) -o $@ $^
 
-$(TUI_EXE): $(TUI_SRCS)
-	$(CC) $(CFLAGS) -o $(TUI_EXE) $(TUI_SRCS) $(NCURSES_LIBS)
+spryzex-ide:
+	cd $(SPRYZEX_DIR) && $(GO) build -o spryzex-ide .
 
 clean:
-	rm -f $(ASM_EXE) $(EMU_EXE) $(TUI_EXE)
+	rm -f $(ASM_EXE) $(EMU_EXE) $(SPRYZEX_EXE)
 	rm -rf listings/ logs/ outputs/
+	rm -rf asm.dSYM emu.dSYM spryzex.dSYM
 
-.PHONY: all clean
+# Run the Hello-World sample through the full pipeline
+demo: $(ASM_EXE) $(EMU_EXE)
+	./asm samples/code.asm
+	./emu outputs/code.o
+
+.PHONY: all clean demo spryzex-ide

@@ -1,4 +1,12 @@
-        ldc 72
+ijnjfj j
+
+
+
+
+
+
+
+iiiiiii:::::::buildi::build        ldc 72
         outc
         ldc 190
         outc
