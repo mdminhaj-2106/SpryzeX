@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,7 +21,11 @@ import (
 // ---- Message types ----
 
 type tickMsg struct{ t time.Time }
-type buildDoneMsg struct{ result *assembler.Result }
+type buildDoneMsg struct {
+	result *assembler.Result
+	asmBin string
+	emuBin string
+}
 type runDoneMsg struct{ result *assembler.Result }
 
 // ---- Panel focus ----
@@ -94,6 +99,18 @@ type model struct {
 	errCount   int
 }
 
+type layoutMetrics struct {
+	spryzexW  int
+	editorW   int
+	topH      int
+	consoleH  int
+	titleH    int
+	statusH   int
+	editorX   int
+	editorY   int
+	consoleY  int
+}
+
 func initialModel(filePath string) model {
 	m := model{
 		anim:        spryzex.NewAnimator(30, 20),
@@ -145,7 +162,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case buildDoneMsg:
 		m.building = false
 		m.lastResult = msg.result
+		if msg.asmBin != "" {
+			m.asmBin = msg.asmBin
+		}
+		if msg.emuBin != "" {
+			m.emuBin = msg.emuBin
+		}
 		m.buildCount++
+		m.ed.SetDiagnostics(assembler.ExtractDiagnostics(msg.result))
 		if msg.result.Success {
 			m.anim.SetState(spryzex.StateSuccess)
 			m.errCount = 0
@@ -156,8 +180,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.errCount = msg.result.ErrorCount
 			m.notify(fmt.Sprintf("✗ %d error(s) — check LOG tab", msg.result.ErrorCount))
 			m.statusMsg = fmt.Sprintf("Build FAILED — %d error(s)", msg.result.ErrorCount)
-			// Update editor diagnostics
-			m.ed.SetDiagnostics(assembler.ExtractDiagnostics(msg.result))
 		}
 		return m, nil
 
@@ -174,6 +196,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
 	}
 
 	return m, nil
@@ -243,6 +268,59 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	layout := m.layout()
+	if layout.topH <= 0 || layout.consoleH <= 0 {
+		return m, nil
+	}
+
+	hoverEditor := msg.Y >= layout.editorY && msg.Y < layout.editorY+layout.topH &&
+		msg.X >= layout.editorX && msg.X < layout.editorX+layout.editorW
+	hoverConsole := msg.Y >= layout.consoleY && msg.Y < layout.consoleY+layout.consoleH
+	hoverSpryzex := layout.spryzexW > 0 &&
+		msg.Y >= layout.editorY && msg.Y < layout.editorY+layout.topH &&
+		msg.X >= 0 && msg.X < layout.spryzexW
+
+	if msg.Action == tea.MouseActionPress {
+		switch msg.Button {
+		case tea.MouseButtonWheelUp:
+			switch {
+			case hoverEditor:
+				m.focus = FocusEditor
+				m.ed.ScrollBy(-3)
+			case hoverConsole:
+				m.focus = FocusConsole
+				m.scrollConsole(-3)
+			}
+			return m, nil
+		case tea.MouseButtonWheelDown:
+			switch {
+			case hoverEditor:
+				m.focus = FocusEditor
+				m.ed.ScrollBy(3)
+			case hoverConsole:
+				m.focus = FocusConsole
+				m.scrollConsole(3)
+			}
+			return m, nil
+		case tea.MouseButtonLeft:
+			switch {
+			case hoverEditor:
+				m.focus = FocusEditor
+				localX := msg.X - layout.editorX - 1
+				localY := msg.Y - layout.editorY - 2
+				m.ed.MoveToViewPosition(localX, localY)
+			case hoverConsole:
+				m.focus = FocusConsole
+			case hoverSpryzex:
+				m.focus = FocusSpryzex
+			}
+		}
+	}
+
+	return m, nil
+}
+
 func (m *model) triggerBuild() tea.Cmd {
 	if m.building {
 		return nil
@@ -254,14 +332,18 @@ func (m *model) triggerBuild() tea.Cmd {
 	m.consoleScrl = 0
 	m.statusMsg = "Building..."
 
+	projectRoot := m.projectRoot
 	asmBin := m.asmBin
-	emuBin := m.emuBin
 	filePath := m.ed.FilePath
-	_ = emuBin
 
 	return func() tea.Msg {
+		if asmBin == "" {
+			_ = buildCProject(projectRoot)
+			asmBin = assembler.FindAssembler(projectRoot)
+		}
+		emuBin := assembler.FindEmulator(projectRoot)
 		result := assembler.Assemble(asmBin, filePath, nil)
-		return buildDoneMsg{result}
+		return buildDoneMsg{result: result, asmBin: asmBin, emuBin: emuBin}
 	}
 }
 
@@ -283,10 +365,15 @@ func (m *model) triggerRun() tea.Cmd {
 	m.consoleScrl = 0
 	m.statusMsg = "Running..."
 
+	projectRoot := m.projectRoot
 	emuBin := m.emuBin
 	objPath := m.lastResult.ObjPath
 
 	return func() tea.Msg {
+		if emuBin == "" {
+			_ = buildCProject(projectRoot)
+			emuBin = assembler.FindEmulator(projectRoot)
+		}
 		result := assembler.Run(emuBin, objPath, nil)
 		return runDoneMsg{result}
 	}
@@ -298,22 +385,16 @@ func (m *model) notify(msg string) {
 }
 
 func (m *model) updateEditorSize() {
-	// Layout: [spryzex 28cols | editor rest] top half, console bottom 1/3
-	spryzexW := 30
-	if m.width < 100 {
-		spryzexW = 0 // hide spryzex on small terminals
+	layout := m.layout()
+	editorInnerW := layout.editorW - 2
+	editorInnerH := layout.topH - 4 // border + header + command bar reserve
+	if editorInnerW < 20 {
+		editorInnerW = 20
 	}
-	edW := m.width - spryzexW - 2 // 2 for borders
-	consoleH := m.height / 3
-	edH := m.height - consoleH - 4 // 4 for title+status bars
-
-	if edW < 20 {
-		edW = 20
+	if editorInnerH < 3 {
+		editorInnerH = 3
 	}
-	if edH < 5 {
-		edH = 5
-	}
-	m.ed.SetSize(edW, edH)
+	m.ed.SetSize(editorInnerW, editorInnerH)
 }
 
 // ---- View ----
@@ -323,30 +404,23 @@ func (m model) View() string {
 		return "Initializing..."
 	}
 
-	// Compute layout
-	spryzexW := 30
-	if m.width < 100 {
-		spryzexW = 0
-	}
-	edW := m.width - spryzexW
-	consoleH := m.height / 3
-	topH := m.height - consoleH - 2 // 2 for title+status
+	layout := m.layout()
 
 	// --- Title bar ---
 	titleBar := m.renderTitleBar()
 
 	// --- Top section: Spryzex | Editor ---
 	var topSection string
-	if spryzexW > 0 {
-		spryzexPanel := m.renderSpryzexPanel(spryzexW, topH)
-		edPanel := m.renderEditorPanel(edW, topH)
+	if layout.spryzexW > 0 {
+		spryzexPanel := m.renderSpryzexPanel(layout.spryzexW, layout.topH)
+		edPanel := m.renderEditorPanel(layout.editorW, layout.topH)
 		topSection = lipgloss.JoinHorizontal(lipgloss.Top, spryzexPanel, edPanel)
 	} else {
-		topSection = m.renderEditorPanel(m.width, topH)
+		topSection = m.renderEditorPanel(m.width, layout.topH)
 	}
 
 	// --- Console ---
-	console := m.renderConsole(m.width, consoleH)
+	console := m.renderConsole(m.width, layout.consoleH)
 
 	// --- Status bar ---
 	statusBar := m.renderStatusBar()
@@ -457,9 +531,7 @@ func (m model) renderSpryzexPanel(w, h int) string {
 
 func (m model) renderEditorPanel(w, h int) string {
 	innerW := w - 2
-	_ = h
-
-	editorContent := m.ed.View(m.focus == FocusEditor)
+	innerH := h - 2
 
 	// Mode pill
 	var modePill string
@@ -479,6 +551,8 @@ func (m model) renderEditorPanel(w, h int) string {
 		Foreground(theme.TextMuted).
 		Render(fmt.Sprintf(" %d:%d ", row, col))
 
+	diagMsg := m.ed.DiagnosticAt(m.ed.CursorRow)
+
 	// Command bar
 	cmdBar := ""
 	if m.ed.Mode == editor.ModeCommand {
@@ -486,13 +560,28 @@ func (m model) renderEditorPanel(w, h int) string {
 			Width(innerW).
 			Background(theme.BgOverlay).
 			Foreground(theme.TextPrimary).
-			Render(fmt.Sprintf(":%s", m.ed.CommandBuf))
+			Render(truncate(":"+m.ed.CommandBuf, innerW))
+	} else if diagMsg != "" {
+		cmdBar = lipgloss.NewStyle().
+			Width(innerW).
+			Foreground(theme.ColorError).
+			Render(truncate(diagMsg, innerW))
 	} else if m.ed.CmdMsg != "" {
 		cmdBar = lipgloss.NewStyle().
 			Width(innerW).
 			Foreground(theme.TextMuted).
-			Render(m.ed.CmdMsg)
+			Render(truncate(m.ed.CmdMsg, innerW))
 	}
+
+	editorBodyH := innerH - 1 // header
+	if cmdBar != "" {
+		editorBodyH--
+	}
+	if editorBodyH < 1 {
+		editorBodyH = 1
+	}
+	m.ed.SetSize(innerW, editorBodyH)
+	editorContent := m.ed.View(m.focus == FocusEditor)
 
 	titleRight := lipgloss.JoinHorizontal(lipgloss.Right, posInfo, modePill)
 	titleW := innerW - lipgloss.Width(titleRight)
@@ -759,33 +848,7 @@ func (m model) renderStatusBar() string {
 
 func (m model) overlayNotification(page string) string {
 	lines := strings.Split(page, "\n")
-
-	msg := " " + m.notification + " "
-	boxW := len(msg) + 4
-	boxX := (m.width - boxW) / 2
 	boxY := m.height / 2
-
-	topLine := "╭" + strings.Repeat("─", boxW-2) + "╮"
-	midLine := "│" + lipgloss.NewStyle().
-		Bold(true).Foreground(theme.SpryzexGlow).
-		Width(boxW-2).Align(lipgloss.Center).Render(m.notification) + "│"
-	botLine := "╰" + strings.Repeat("─", boxW-2) + "╯"
-
-	overlay := func(line, insert string, x int) string {
-		runes := []rune(line)
-		ins := []rune(insert)
-		if x < 0 {
-			x = 0
-		}
-		for x < len(runes) && x < len(runes) && len(ins) > 0 {
-			if x+len(ins) <= len(runes) {
-				copy(runes[x:], ins)
-			}
-			break
-		}
-		return string(runes)
-	}
-	_ = overlay
 
 	// Simple: inject box into page string at correct Y position
 	boxStyle := lipgloss.NewStyle().
@@ -804,12 +867,9 @@ func (m model) overlayNotification(page string) string {
 	if row >= len(lines) {
 		row = len(lines) / 2
 	}
-
-	_ = topLine
-	_ = midLine
-	_ = botLine
-	_ = boxX
-
+	if padLeft < 0 {
+		padLeft = 0
+	}
 	lines[row] = strings.Repeat(" ", padLeft) + notification
 	return strings.Join(lines, "\n")
 }
@@ -906,8 +966,8 @@ func defaultASM() []string {
 // ---- Build the C assembler/emulator from source ----
 func buildCProject(root string) error {
 	cmd := exec.Command("make", "-C", root, "all")
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
 	return cmd.Run()
 }
 
@@ -915,15 +975,6 @@ func main() {
 	var filePath string
 	if len(os.Args) > 1 {
 		filePath = os.Args[1]
-	}
-
-	// Optional: try to build the C project
-	root := findProjectRoot(filePath)
-	if _, err := os.Stat(filepath.Join(root, "Makefile")); err == nil {
-		// Run make silently; don't block startup
-		go func() {
-			_ = buildCProject(root)
-		}()
 	}
 
 	m := initialModel(filePath)
@@ -935,5 +986,66 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+func (m model) layout() layoutMetrics {
+	availableH := m.height - 2 // title + status
+	if availableH < 2 {
+		availableH = 2
+	}
+
+	spryzexW := 30
+	if m.width < 100 {
+		spryzexW = 0
+	}
+
+	consoleH := availableH / 3
+	topH := availableH - consoleH
+
+	if availableH >= 10 && topH < 6 {
+		topH = 6
+		consoleH = availableH - topH
+	}
+	if availableH >= 8 && consoleH < 3 {
+		consoleH = 3
+		topH = availableH - consoleH
+	}
+	if topH < 1 {
+		topH = 1
+	}
+	if consoleH < 1 {
+		consoleH = 1
+	}
+	editorW := m.width - spryzexW
+	if editorW < 20 {
+		editorW = 20
+	}
+
+	return layoutMetrics{
+		spryzexW: spryzexW,
+		editorW:  editorW,
+		topH:     topH,
+		consoleH: consoleH,
+		titleH:   1,
+		statusH:  1,
+		editorX:  spryzexW,
+		editorY:  1,
+		consoleY: 1 + topH,
+	}
+}
+
+func (m *model) scrollConsole(delta int) {
+	lines := m.getConsoleLines()
+	maxScroll := len(lines) - max(m.layout().consoleH-4, 1)
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	m.consoleScrl += delta
+	if m.consoleScrl < 0 {
+		m.consoleScrl = 0
+	}
+	if m.consoleScrl > maxScroll {
+		m.consoleScrl = maxScroll
 	}
 }

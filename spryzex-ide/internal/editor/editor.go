@@ -411,46 +411,47 @@ func (e *Editor) View(focused bool) string {
 		return ""
 	}
 
-	gutterW := len(fmt.Sprintf("%d", len(e.Lines))) + 1
-	if gutterW < 4 {
-		gutterW = 4
-	}
-	contentW := e.width - gutterW - 1 // 1 for gutter separator
+	gutterW := e.gutterWidth()
+	contentW := e.contentWidth()
 
 	var sb strings.Builder
 
 	for row := e.ScrollRow; row < e.ScrollRow+e.height && row < len(e.Lines); row++ {
 		lineNum := row + 1
 		isCursorRow := row == e.CursorRow
+		_, hasDiag := e.ErrorLines[row]
 
 		// Gutter
-		gutterStr := fmt.Sprintf("%*d", gutterW, lineNum)
-		if isCursorRow {
-			sb.WriteString(theme.LineNumActiveStyle.Render(gutterStr))
+		gutterStr := fmt.Sprintf("%*d ", gutterW-2, lineNum)
+		if hasDiag {
+			gutterStr += "!"
 		} else {
+			gutterStr += " "
+		}
+		switch {
+		case hasDiag:
+			sb.WriteString(lipgloss.NewStyle().
+				Foreground(theme.ColorError).
+				Background(theme.BgSurface).
+				Bold(true).
+				Render(gutterStr))
+		case isCursorRow:
+			sb.WriteString(theme.LineNumActiveStyle.Render(gutterStr))
+		default:
 			sb.WriteString(theme.LineNumStyle.Render(gutterStr))
 		}
 
 		// Separator
 		sepStyle := lipgloss.NewStyle().Foreground(theme.BorderSubtle).Background(theme.BgSurface)
-		if focused && isCursorRow {
+		if hasDiag {
+			sepStyle = lipgloss.NewStyle().Foreground(theme.ColorError).Background(theme.BgSurface)
+		} else if focused && isCursorRow {
 			sepStyle = lipgloss.NewStyle().Foreground(theme.SpryzexRed).Background(theme.BgSurface)
 		}
 		sb.WriteString(sepStyle.Render("│"))
 
 		// Line content with syntax highlighting
-		line := e.Lines[row]
-		if e.ScrollCol < len(line) {
-			end := e.ScrollCol + contentW
-			if end > len(line) {
-				end = len(line)
-			}
-			line = line[e.ScrollCol:end]
-		} else {
-			line = ""
-		}
-
-		rendered := e.renderLine(line, row, contentW, isCursorRow && focused)
+		rendered := e.renderLine(e.Lines[row], contentW, isCursorRow && focused)
 
 		if isCursorRow && focused {
 			sb.WriteString(theme.CursorLineStyle.Width(contentW).Render(rendered))
@@ -482,7 +483,7 @@ func (e *Editor) View(focused bool) string {
 }
 
 // renderLine applies syntax highlighting to a single line
-func (e *Editor) renderLine(line string, row, width int, isCursor bool) string {
+func (e *Editor) renderLine(line string, width int, isCursor bool) string {
 	if len(line) == 0 {
 		// Even empty cursor line needs cursor char
 		if isCursor {
@@ -496,7 +497,8 @@ func (e *Editor) renderLine(line string, row, width int, isCursor bool) string {
 
 	tokens := tokenize(line)
 	var sb strings.Builder
-	col := 0
+	absCol := 0
+	visibleCol := 0
 
 	for _, tok := range tokens {
 		var style lipgloss.Style
@@ -518,12 +520,18 @@ func (e *Editor) renderLine(line string, row, width int, isCursor bool) string {
 		}
 
 		// Apply cursor within token
-		for i, ch := range tok.text {
-			chStr := string(ch)
-			chCol := col + i
-			screenCol := chCol + e.ScrollCol
+		for _, ch := range []rune(tok.text) {
+			if absCol < e.ScrollCol {
+				absCol++
+				continue
+			}
+			if visibleCol >= width {
+				break
+			}
 
-			if isCursor && screenCol == e.CursorCol {
+			chStr := string(ch)
+
+			if isCursor && absCol == e.CursorCol {
 				// Draw cursor char
 				cursorStyle := lipgloss.NewStyle().
 					Background(theme.SpryzexGlow).
@@ -533,25 +541,23 @@ func (e *Editor) renderLine(line string, row, width int, isCursor bool) string {
 			} else {
 				sb.WriteString(style.Render(chStr))
 			}
+			absCol++
+			visibleCol++
 		}
-		col += len(tok.text)
 	}
 
 	// Cursor at end of line
-	if isCursor && e.CursorCol-e.ScrollCol >= col {
+	lineLen := len([]rune(line))
+	if isCursor && e.CursorCol >= e.ScrollCol && e.CursorCol == lineLen && visibleCol < width {
 		cursorStyle := lipgloss.NewStyle().Background(theme.SpryzexGlow).Foreground(theme.BgDeep)
 		sb.WriteString(cursorStyle.Render(" "))
-		col++
+		visibleCol++
 	}
 
 	result := sb.String()
 	// Pad to width
-	visLen := visibleLen(line)
-	if isCursor && e.CursorCol-e.ScrollCol >= visLen {
-		visLen++
-	}
-	if visLen < width {
-		result += strings.Repeat(" ", width-visLen)
+	if visibleCol < width {
+		result += strings.Repeat(" ", width-visibleCol)
 	}
 	return result
 }
@@ -1014,7 +1020,7 @@ func (e *Editor) clampCursor() {
 	if e.CursorRow < 0 {
 		e.CursorRow = 0
 	}
-	lineLen := len(e.currentLine())
+	lineLen := len([]rune(e.currentLine()))
 	if e.Mode == ModeNormal && lineLen > 0 {
 		if e.CursorCol >= lineLen {
 			e.CursorCol = lineLen - 1
@@ -1030,6 +1036,13 @@ func (e *Editor) clampCursor() {
 }
 
 func (e *Editor) clampScroll() {
+	if e.height <= 0 {
+		e.height = 1
+	}
+	if e.width <= 0 {
+		e.width = 1
+	}
+
 	// Vertical
 	if e.CursorRow < e.ScrollRow {
 		e.ScrollRow = e.CursorRow
@@ -1040,10 +1053,22 @@ func (e *Editor) clampScroll() {
 	if e.ScrollRow < 0 {
 		e.ScrollRow = 0
 	}
+	maxScrollRow := max(len(e.Lines)-e.height, 0)
+	if e.ScrollRow > maxScrollRow {
+		e.ScrollRow = maxScrollRow
+	}
 
-	// Horizontal (auto-scroll when cursor moves right)
+	// Horizontal
 	if e.CursorCol < e.ScrollCol {
 		e.ScrollCol = e.CursorCol
+	}
+	contentW := e.contentWidth()
+	if e.CursorCol >= e.ScrollCol+contentW {
+		e.ScrollCol = e.CursorCol - contentW + 1
+	}
+	maxScrollCol := max(len([]rune(e.currentLine()))-contentW+1, 0)
+	if e.ScrollCol > maxScrollCol {
+		e.ScrollCol = maxScrollCol
 	}
 	if e.ScrollCol < 0 {
 		e.ScrollCol = 0
@@ -1065,6 +1090,78 @@ func (e *Editor) SetDiagnostics(errs map[int]string) {
 
 func visibleLen(s string) int {
 	return len([]rune(s))
+}
+
+func (e *Editor) DiagnosticAt(row int) string {
+	return e.ErrorLines[row]
+}
+
+func (e *Editor) ScrollBy(delta int) {
+	if delta == 0 {
+		return
+	}
+	maxScroll := max(len(e.Lines)-e.height, 0)
+	e.ScrollRow += delta
+	if e.ScrollRow < 0 {
+		e.ScrollRow = 0
+	}
+	if e.ScrollRow > maxScroll {
+		e.ScrollRow = maxScroll
+	}
+	if e.CursorRow < e.ScrollRow {
+		e.CursorRow = e.ScrollRow
+	}
+	if e.CursorRow >= e.ScrollRow+e.height {
+		e.CursorRow = e.ScrollRow + e.height - 1
+	}
+	e.clampCursor()
+	e.clampScroll()
+}
+
+func (e *Editor) MoveToViewPosition(x, y int) {
+	if len(e.Lines) == 0 {
+		return
+	}
+	if y < 0 {
+		y = 0
+	}
+	if y >= e.height {
+		y = e.height - 1
+	}
+	row := e.ScrollRow + y
+	if row >= len(e.Lines) {
+		row = len(e.Lines) - 1
+	}
+
+	col := e.ScrollCol + max(0, x-e.gutterWidth()-1)
+	lineLen := len([]rune(e.Lines[row]))
+	if e.Mode == ModeNormal && lineLen > 0 && col >= lineLen {
+		col = lineLen - 1
+	}
+	if col > lineLen {
+		col = lineLen
+	}
+
+	e.CursorRow = row
+	e.CursorCol = max(0, col)
+	e.clampCursor()
+	e.clampScroll()
+}
+
+func (e *Editor) gutterWidth() int {
+	gutterW := len(fmt.Sprintf("%d", len(e.Lines))) + 2
+	if gutterW < 5 {
+		gutterW = 5
+	}
+	return gutterW
+}
+
+func (e *Editor) contentWidth() int {
+	contentW := e.width - e.gutterWidth() - 1
+	if contentW < 1 {
+		contentW = 1
+	}
+	return contentW
 }
 
 func min(a, b int) int {

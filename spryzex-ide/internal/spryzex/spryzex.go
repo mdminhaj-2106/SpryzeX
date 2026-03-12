@@ -183,9 +183,24 @@ func (a *Animator) renderSpryzex(radius float64) [][]rune {
 // Render returns the full SPRYZEX panel as a styled string
 func (a *Animator) Render(panelWidth, panelHeight int) string {
 	var sb strings.Builder
+	if panelWidth < 1 || panelHeight < 1 {
+		return ""
+	}
+
+	infoLines := 0
+	if panelHeight >= 10 {
+		infoLines = 2
+	} else if panelHeight >= 6 {
+		infoLines = 1
+	}
+	artHeight := panelHeight - infoLines
+	if artHeight < 3 {
+		artHeight = panelHeight
+		infoLines = 0
+	}
 
 	// Dynamic radius based on panel size
-	radiusByHeight := float64(panelHeight) * 0.32
+	radiusByHeight := float64(artHeight) * 0.30
 	radiusByWidth := float64(panelWidth) * 0.24
 	radius := math.Min(radiusByHeight, radiusByWidth)
 	if radius < 4 {
@@ -202,15 +217,15 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 	// Phobos: small, close, fast orbit
 	phobosOrbitR := radius * 2.2
 	phobosX := float64(panelWidth/2) + math.Cos(a.phobosAngle)*phobosOrbitR*2
-	phobosY := float64(panelHeight/2) + math.Sin(a.phobosAngle)*phobosOrbitR*0.5
+	phobosY := float64(artHeight/2) + math.Sin(a.phobosAngle)*phobosOrbitR*0.5
 
 	// Deimos: tiny, far, slow orbit
 	deimosOrbitR := radius * 3.2
 	deimosX := float64(panelWidth/2) + math.Cos(a.deimosAngle+math.Pi)*deimosOrbitR*2
-	deimosY := float64(panelHeight/2) + math.Sin(a.deimosAngle+math.Pi)*deimosOrbitR*0.5
+	deimosY := float64(artHeight/2) + math.Sin(a.deimosAngle+math.Pi)*deimosOrbitR*0.5
 
 	// Build char grid
-	grid := make([][]string, panelHeight)
+	grid := make([][]string, artHeight)
 	for i := range grid {
 		grid[i] = make([]string, panelWidth)
 		for j := range grid[i] {
@@ -219,7 +234,7 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 	}
 
 	// SPRYZEX sphere offset so it's centered
-	sphereOffY := (panelHeight - sphereRows) / 2
+	sphereOffY := (artHeight - sphereRows) / 2
 	sphereOffX := (panelWidth - sphereCols) / 2
 
 	// Color function for SPRYZEX sphere chars
@@ -244,7 +259,7 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 		for col := 0; col < sphereCols; col++ {
 			gy := sphereOffY + row
 			gx := sphereOffX + col
-			if gy >= 0 && gy < panelHeight && gx >= 0 && gx < panelWidth {
+			if gy >= 0 && gy < artHeight && gx >= 0 && gx < panelWidth {
 				ch := sphere[row][col]
 				if ch != ' ' {
 					grid[gy][gx] = spryzexColor(ch)
@@ -260,8 +275,8 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 	// Draw Phobos orbit dots
 	for t := 0.0; t < 2*math.Pi; t += 0.15 {
 		ox := int(float64(panelWidth/2) + math.Cos(t)*phobosOrbitR*2)
-		oy := int(float64(panelHeight/2) + math.Sin(t)*phobosOrbitR*0.5)
-		if ox >= 0 && ox < panelWidth && oy >= 0 && oy < panelHeight && grid[oy][ox] == " " {
+		oy := int(float64(artHeight/2) + math.Sin(t)*phobosOrbitR*0.5)
+		if ox >= 0 && ox < panelWidth && oy >= 0 && oy < artHeight && grid[oy][ox] == " " {
 			grid[oy][ox] = phobosStyle.Render("·")
 		}
 	}
@@ -269,8 +284,8 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 	// Draw Deimos orbit dots
 	for t := 0.0; t < 2*math.Pi; t += 0.25 {
 		ox := int(float64(panelWidth/2) + math.Cos(t)*deimosOrbitR*2)
-		oy := int(float64(panelHeight/2) + math.Sin(t)*deimosOrbitR*0.5)
-		if ox >= 0 && ox < panelWidth && oy >= 0 && oy < panelHeight && grid[oy][ox] == " " {
+		oy := int(float64(artHeight/2) + math.Sin(t)*deimosOrbitR*0.5)
+		if ox >= 0 && ox < panelWidth && oy >= 0 && oy < artHeight && grid[oy][ox] == " " {
 			grid[oy][ox] = deimosStyle.Render("·")
 		}
 	}
@@ -278,7 +293,7 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 	// Draw Phobos moon
 	py := int(phobosY)
 	px := int(phobosX)
-	if px >= 0 && px < panelWidth-1 && py >= 0 && py < panelHeight {
+	if px >= 0 && px < panelWidth-1 && py >= 0 && py < artHeight {
 		moonStr := phobosStyle.Bold(true).Render("◉")
 		grid[py][px] = moonStr
 	}
@@ -286,54 +301,53 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 	// Draw Deimos moon
 	dy := int(deimosY)
 	dx := int(deimosX)
-	if dx >= 0 && dx < panelWidth-1 && dy >= 0 && dy < panelHeight {
+	if dx >= 0 && dx < panelWidth-1 && dy >= 0 && dy < artHeight {
 		moonStr := deimosStyle.Bold(true).Render("●")
 		grid[dy][dx] = moonStr
 	}
 
 	// Fire particles when building
 	if a.State == StateBuilding {
-		a.drawFire(grid, panelWidth, panelHeight, sphereOffX, sphereOffY, sphereRows, sphereCols)
+		a.drawFire(grid, panelWidth, artHeight, sphereOffX, sphereOffY, sphereRows, sphereCols)
 	}
 
 	// Success burst
 	if a.State == StateSuccess {
-		a.drawBurst(grid, panelWidth, panelHeight)
+		a.drawBurst(grid, panelWidth, artHeight)
 	}
 
 	// Error pulse
 	if a.State == StateError {
-		a.drawErrorPulse(grid, panelWidth, panelHeight)
+		a.drawErrorPulse(grid, panelWidth, artHeight)
 	}
 
 	// Render grid to string
-	for row := 0; row < panelHeight; row++ {
+	for row := 0; row < artHeight; row++ {
 		for col := 0; col < panelWidth; col++ {
 			sb.WriteString(grid[row][col])
 		}
-		if row < panelHeight-1 {
+		if row < artHeight-1 || infoLines > 0 {
 			sb.WriteRune('\n')
 		}
 	}
 
-	// Status label at bottom
-	label := a.stateLabel()
-	sb.WriteRune('\n')
-	sb.WriteString(lipgloss.NewStyle().
-		Width(panelWidth).
-		Align(lipgloss.Center).
-		Foreground(a.stateColor()).
-		Bold(true).
-		Render(label))
+	if infoLines >= 1 {
+		sb.WriteString(lipgloss.NewStyle().
+			Width(panelWidth).
+			Align(lipgloss.Center).
+			Foreground(a.stateColor()).
+			Bold(true).
+			Render(a.stateLabel()))
+	}
 
-	// Moon labels
-	sb.WriteRune('\n')
-	moonInfo := lipgloss.NewStyle().
-		Width(panelWidth).
-		Align(lipgloss.Center).
-		Foreground(theme.TextMuted).
-		Render("◉ Phobos  ● Deimos")
-	sb.WriteString(moonInfo)
+	if infoLines >= 2 {
+		sb.WriteRune('\n')
+		sb.WriteString(lipgloss.NewStyle().
+			Width(panelWidth).
+			Align(lipgloss.Center).
+			Foreground(theme.TextMuted).
+			Render("Phobos / Deimos"))
+	}
 
 	return sb.String()
 }
