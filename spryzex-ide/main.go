@@ -513,6 +513,18 @@ func (m model) renderSpryzexPanel(w, h int) string {
                 spryzexW = 10
         }
 
+        // Tell the face where the cursor is so eyes can track it
+        layout := m.layout()
+        edH := layout.topH - 4
+        edW := layout.editorW - 2
+        if edH < 1 {
+                edH = 1
+        }
+        if edW < 1 {
+                edW = 1
+        }
+        m.anim.SetCursor(m.ed.CursorRow, m.ed.CursorCol, edH, edW)
+
         content := m.anim.Render(spryzexW, spryzexH)
 
         borderColor := theme.BorderSubtle
