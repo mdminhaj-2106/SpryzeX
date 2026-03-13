@@ -54,15 +54,15 @@ func NewAnimator(w, h int) *Animator {
 
 func (a *Animator) initStars(w, h int) {
 	a.stars = a.stars[:0]
-	count := (w * h) / 20
-	if count > 40 {
-		count = 40
+	count := (w * h) / 18
+	if count > 50 {
+		count = 50
 	}
 	for i := 0; i < count; i++ {
 		a.stars = append(a.stars, star{
 			x:       rand.Intn(max1(w)),
 			y:       rand.Intn(max1(h)),
-			twinkle: rand.Intn(20),
+			twinkle: rand.Intn(30),
 		})
 	}
 }
@@ -77,29 +77,29 @@ func max1(n int) int {
 func (a *Animator) Tick() {
 	a.Frame++
 
-	speed := 0.03
+	speed := 0.025
 	switch a.State {
 	case StateBuilding:
-		speed = 0.15
+		speed = 0.12
 	case StateSuccess:
-		speed = 0.05
+		speed = 0.04
 		a.burstFrame++
 	case StateRunning:
-		speed = 0.04
+		speed = 0.035
 	}
 
 	a.spryzexAngleA += speed
-	a.spryzexAngleB += speed * 0.37
+	a.spryzexAngleB += speed * 0.41
 
-	phobosSpeed := 0.10
+	phobosSpeed := 0.08
 	if a.State == StateBuilding {
-		phobosSpeed = 0.30
+		phobosSpeed = 0.25
 	}
 	a.phobosAngle += phobosSpeed
 
-	deimosSpeed := 0.035
+	deimosSpeed := 0.03
 	if a.State == StateBuilding {
-		deimosSpeed = 0.10
+		deimosSpeed = 0.08
 	}
 	a.deimosAngle += deimosSpeed
 
@@ -111,30 +111,67 @@ func (a *Animator) SetState(s BuildState) {
 	a.burstFrame = 0
 }
 
-func (a *Animator) renderSphere(radius float64) ([][]rune, [][]int) {
-	cols := int(radius * 4.0)
-	rows := int(radius * 2.0)
-	if rows < 3 {
-		rows = 3
-	}
-	if cols < 6 {
-		cols = 6
+// sphereColor maps a Lambertian dot product [0,1] to a smooth orange/red background color.
+func sphereColor(dot float64) lipgloss.Color {
+	type rgb struct{ r, g, b float64 }
+
+	stops := []struct {
+		t float64
+		c rgb
+	}{
+		{0.00, rgb{0.06, 0.01, 0.01}}, // deep shadow
+		{0.18, rgb{0.20, 0.05, 0.02}}, // dark
+		{0.38, rgb{0.50, 0.16, 0.05}}, // terminator
+		{0.60, rgb{0.78, 0.36, 0.09}}, // mid-lit
+		{0.80, rgb{0.94, 0.60, 0.20}}, // lit
+		{1.00, rgb{1.00, 0.87, 0.60}}, // highlight
 	}
 
-	buf := make([][]rune, rows)
-	light := make([][]int, rows)
+	var c rgb
+	for i := 1; i < len(stops); i++ {
+		if dot <= stops[i].t {
+			lo := stops[i-1]
+			hi := stops[i]
+			t := (dot - lo.t) / (hi.t - lo.t)
+			c.r = lo.c.r + t*(hi.c.r-lo.c.r)
+			c.g = lo.c.g + t*(hi.c.g-lo.c.g)
+			c.b = lo.c.b + t*(hi.c.b-lo.c.b)
+			break
+		}
+	}
+	if dot > 1.0 {
+		c = stops[len(stops)-1].c
+	}
+
+	ri := int(math.Min(c.r*255, 255))
+	gi := int(math.Min(c.g*255, 255))
+	bi := int(math.Min(c.b*255, 255))
+	return lipgloss.Color(fmt.Sprintf("#%02X%02X%02X", ri, gi, bi))
+}
+
+// renderSphere returns a 2-D grid of background colors (empty string = no sphere here).
+func (a *Animator) renderSphere(radius float64) ([][]lipgloss.Color, int, int) {
+	cols := int(radius * 4.0)
+	rows := int(radius * 2.2)
+	if rows < 4 {
+		rows = 4
+	}
+	if cols < 8 {
+		cols = 8
+	}
+
+	colors := make([][]lipgloss.Color, rows)
 	zbuf := make([][]float64, rows)
-	for i := range buf {
-		buf[i] = make([]rune, cols)
-		light[i] = make([]int, cols)
+	for i := range colors {
+		colors[i] = make([]lipgloss.Color, cols)
 		zbuf[i] = make([]float64, cols)
-		for j := range buf[i] {
-			buf[i][j] = ' '
+		for j := range zbuf[i] {
 			zbuf[i][j] = -1e9
 		}
 	}
 
-	lx, ly, lz := 0.7, -0.5, 0.5
+	// Light direction — upper-left-front
+	lx, ly, lz := 0.55, -0.55, 0.62
 	lmag := math.Sqrt(lx*lx + ly*ly + lz*lz)
 	lx, ly, lz = lx/lmag, ly/lmag, lz/lmag
 
@@ -143,26 +180,25 @@ func (a *Animator) renderSphere(radius float64) ([][]rune, [][]int) {
 	cosB := math.Cos(a.spryzexAngleB)
 	sinB := math.Sin(a.spryzexAngleB)
 
-	shading := []rune{'█', '▓', '▓', '▒', '▒', '░', '·'}
+	for theta := 0.0; theta < 2*math.Pi; theta += 0.030 {
+		for phi := 0.0; phi < 2*math.Pi; phi += 0.016 {
+			sinT, cosT := math.Sin(theta), math.Cos(theta)
+			sinP, cosP := math.Sin(phi), math.Cos(phi)
 
-	for theta := 0.0; theta < 2*math.Pi; theta += 0.035 {
-		for phi := 0.0; phi < 2*math.Pi; phi += 0.018 {
-			sinTheta := math.Sin(theta)
-			cosTheta := math.Cos(theta)
-			sinPhi := math.Sin(phi)
-			cosPhi := math.Cos(phi)
+			// Point on unit sphere
+			x := sinT * cosP
+			y := sinT * sinP
+			z := cosT
 
-			x := sinTheta * cosPhi
-			y := sinTheta * sinPhi
-			z := cosTheta
-
+			// Rotate around Y then X
 			x2 := x*cosA - z*sinA
 			z2 := x*sinA + z*cosA
 			y2 := y*cosB - z2*sinB
 			z3 := y*sinB + z2*cosB
 
+			// Project (orthographic) — compensate for 2:1 char aspect ratio
 			sx := int(float64(cols)/2.0 + radius*2.0*x2)
-			sy := int(float64(rows)/2.0 - radius*y2)
+			sy := int(float64(rows)/2.0 - radius*1.0*y2)
 
 			if sx < 0 || sx >= cols || sy < 0 || sy >= rows {
 				continue
@@ -173,21 +209,30 @@ func (a *Animator) renderSphere(radius float64) ([][]rune, [][]int) {
 			}
 			zbuf[sy][sx] = z3
 
+			// Lambertian diffuse
 			dot := x2*lx + y2*ly + z3*lz
 			if dot < 0 {
 				dot = 0
 			}
 
-			idx := int(dot * float64(len(shading)-1))
-			if idx >= len(shading) {
-				idx = len(shading) - 1
+			// Small specular spike
+			hy := ly
+			hz := lz + 1.0
+			hlen := math.Sqrt(lx*lx + hy*hy + hz*hz)
+			spec := x2*lx/hlen + y2*hy/hlen + z3*hz/hlen
+			if spec < 0 {
+				spec = 0
 			}
-			buf[sy][sx] = shading[idx]
-			light[sy][sx] = idx
+			dot += math.Pow(spec, 12) * 0.45
+			if dot > 1.0 {
+				dot = 1.0
+			}
+
+			colors[sy][sx] = sphereColor(dot)
 		}
 	}
 
-	return buf, light
+	return colors, rows, cols
 }
 
 func (a *Animator) Render(panelWidth, panelHeight int) string {
@@ -209,25 +254,21 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 		infoLines = 1
 	}
 	artHeight := panelHeight - infoLines
-	if artHeight < 3 {
+	if artHeight < 4 {
 		artHeight = panelHeight
 		infoLines = 0
 	}
 
-	radiusByH := float64(artHeight) * 0.26
-	radiusByW := float64(panelWidth) * 0.20
+	radiusByH := float64(artHeight) * 0.23
+	radiusByW := float64(panelWidth) * 0.18
 	radius := math.Min(radiusByH, radiusByW)
-	if radius < 3 {
-		radius = 3
+	if radius < 3.5 {
+		radius = 3.5
 	}
 
-	sphere, lightmap := a.renderSphere(radius)
-	sphereRows := len(sphere)
-	sphereCols := 0
-	if sphereRows > 0 {
-		sphereCols = len(sphere[0])
-	}
+	sphereColors, sphereRows, sphereCols := a.renderSphere(radius)
 
+	// Build a string grid: each cell is a single pre-rendered string
 	grid := make([][]string, artHeight)
 	for i := range grid {
 		grid[i] = make([]string, panelWidth)
@@ -241,10 +282,10 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 	sphereOffY := (artHeight - sphereRows) / 2
 	sphereOffX := (panelWidth - sphereCols) / 2
 
-	phobosOrbitRx := radius * 2.4
+	phobosOrbitRx := radius * 2.5
 	phobosOrbitRy := radius * 0.55
-	deimosOrbitRx := radius * 3.6
-	deimosOrbitRy := radius * 0.75
+	deimosOrbitRx := radius * 3.8
+	deimosOrbitRy := radius * 0.80
 
 	cx := float64(panelWidth) / 2.0
 	cy := float64(artHeight) / 2.0
@@ -252,15 +293,15 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 	phobosStyle := lipgloss.NewStyle().Foreground(theme.PhobosBlue)
 	deimosStyle := lipgloss.NewStyle().Foreground(theme.DeimosGold)
 
-	for t := 0.0; t < 2*math.Pi; t += 0.12 {
+	// Draw orbit trails (behind sphere)
+	for t := 0.0; t < 2*math.Pi; t += 0.10 {
 		ox := int(cx + math.Cos(t)*phobosOrbitRx)
 		oy := int(cy + math.Sin(t)*phobosOrbitRy)
 		if ox >= 0 && ox < panelWidth && oy >= 0 && oy < artHeight && grid[oy][ox] == " " {
 			grid[oy][ox] = phobosStyle.Render("·")
 		}
 	}
-
-	for t := 0.0; t < 2*math.Pi; t += 0.18 {
+	for t := 0.0; t < 2*math.Pi; t += 0.16 {
 		ox := int(cx + math.Cos(t)*deimosOrbitRx)
 		oy := int(cy + math.Sin(t)*deimosOrbitRy)
 		if ox >= 0 && ox < panelWidth && oy >= 0 && oy < artHeight && grid[oy][ox] == " " {
@@ -268,6 +309,7 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 		}
 	}
 
+	// Draw sphere — background-colored spaces for smooth 3D shading
 	for row := 0; row < sphereRows; row++ {
 		for col := 0; col < sphereCols; col++ {
 			gy := sphereOffY + row
@@ -275,47 +317,30 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 			if gy < 0 || gy >= artHeight || gx < 0 || gx >= panelWidth {
 				continue
 			}
-			ch := sphere[row][col]
-			if ch == ' ' {
+			c := sphereColors[row][col]
+			if c == "" {
 				continue
 			}
-			li := lightmap[row][col]
-			var color lipgloss.Color
-			switch {
-			case li == 0:
-				color = theme.SpryzexGlow
-			case li <= 1:
-				color = theme.SpryzexBright
-			case li <= 3:
-				color = theme.SpryzexRed
-			default:
-				color = theme.SpryzexDust
-			}
-			style := lipgloss.NewStyle().Foreground(color)
-			if li <= 1 {
-				style = style.Bold(true)
-			}
-			grid[gy][gx] = style.Render(string(ch))
+			grid[gy][gx] = lipgloss.NewStyle().Background(c).Render(" ")
 		}
 	}
 
+	// Draw moons on top
 	phobosX := cx + math.Cos(a.phobosAngle)*phobosOrbitRx
 	phobosY := cy + math.Sin(a.phobosAngle)*phobosOrbitRy
 	deimosX := cx + math.Cos(a.deimosAngle+math.Pi)*deimosOrbitRx
 	deimosY := cy + math.Sin(a.deimosAngle+math.Pi)*deimosOrbitRy
 
-	py := int(phobosY)
-	px := int(phobosX)
+	py, px := int(phobosY), int(phobosX)
 	if px >= 0 && px < panelWidth && py >= 0 && py < artHeight {
 		grid[py][px] = phobosStyle.Bold(true).Render("◉")
 	}
-
-	dy := int(deimosY)
-	dx := int(deimosX)
+	dy, dx := int(deimosY), int(deimosX)
 	if dx >= 0 && dx < panelWidth && dy >= 0 && dy < artHeight {
 		grid[dy][dx] = deimosStyle.Bold(true).Render("◉")
 	}
 
+	// State effects
 	switch a.State {
 	case StateBuilding:
 		a.drawFire(grid, panelWidth, artHeight, sphereOffX, sphereOffY, sphereRows, sphereCols)
@@ -325,6 +350,7 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 		a.drawErrorPulse(grid, panelWidth, artHeight)
 	}
 
+	// Assemble rows
 	for row := 0; row < artHeight; row++ {
 		for col := 0; col < panelWidth; col++ {
 			sb.WriteString(grid[row][col])
@@ -334,6 +360,7 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 		}
 	}
 
+	// Info lines
 	if infoLines >= 1 {
 		label := a.stateLabel()
 		sb.WriteString(lipgloss.NewStyle().
@@ -343,7 +370,6 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 			Bold(true).
 			Render(label))
 	}
-
 	if infoLines >= 2 {
 		sb.WriteRune('\n')
 		phText := lipgloss.NewStyle().Foreground(theme.PhobosBlue).Bold(true).Render("◉ Phobos")
@@ -363,8 +389,8 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 }
 
 func (a *Animator) drawStarfield(grid [][]string, pw, ph int) {
-	starChars := []string{"⋆", "·", "∘", "⋅"}
-	starColors := []lipgloss.Color{"#2A3050", "#252840", "#1E2238", "#1A1D30"}
+	starChars := []string{"·", "⋆", "∘", "⋅", "·"}
+	starColors := []lipgloss.Color{"#2A3060", "#1E2545", "#252840", "#1A1D35", "#303870"}
 	for _, s := range a.stars {
 		if s.x >= pw || s.y >= ph {
 			continue
@@ -372,20 +398,24 @@ func (a *Animator) drawStarfield(grid [][]string, pw, ph int) {
 		if grid[s.y][s.x] != " " {
 			continue
 		}
-		twinklePhase := (a.Frame + s.twinkle) % 30
-		if twinklePhase > 20 {
+		twinklePhase := (a.Frame + s.twinkle) % 40
+		if twinklePhase > 26 {
 			continue
 		}
 		charIdx := (s.x + s.y) % len(starChars)
 		colorIdx := (s.x*3 + s.y*7) % len(starColors)
+		// Brighter twinkle
+		if twinklePhase > 22 {
+			colorIdx = 4 // brightest
+		}
 		grid[s.y][s.x] = lipgloss.NewStyle().
 			Foreground(starColors[colorIdx]).
 			Render(starChars[charIdx])
 	}
 }
 
-var fireChars = []rune{'▲', '△', '∧', '˄', '`', ' '}
-var fireColors = []lipgloss.Color{"#FF0000", "#FF3300", "#FF6600", "#FF9900", "#FFCC00", "#FFEE44"}
+var fireChars = []rune{'▲', '△', '∧', '˄', ' ', ' '}
+var fireColors = []lipgloss.Color{"#FF1100", "#FF3300", "#FF6600", "#FF9900", "#FFCC00", "#FFEE44"}
 
 func (a *Animator) drawFire(grid [][]string, pw, ph, sox, soy, sr, sc int) {
 	baseY := soy + sr

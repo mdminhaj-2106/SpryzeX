@@ -425,22 +425,12 @@ func (m model) View() string {
         // --- Status bar ---
         statusBar := m.renderStatusBar()
 
-        // --- Notification overlay ---
-        page := lipgloss.JoinVertical(lipgloss.Left,
+        return lipgloss.JoinVertical(lipgloss.Left,
                 titleBar,
                 topSection,
                 console,
                 statusBar,
         )
-
-        // Overlay notification
-        if m.notification != "" && time.Now().Before(m.notifyUntil) {
-                page = m.overlayNotification(page)
-        } else {
-                m.notification = ""
-        }
-
-        return page
 }
 
 func (m model) renderTitleBar() string {
