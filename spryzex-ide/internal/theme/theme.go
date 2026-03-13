@@ -2,59 +2,49 @@ package theme
 
 import "github.com/charmbracelet/lipgloss"
 
-// SPRYZEX color palette — deep space meets red planet
 var (
-	// Base palette
-	BgDeep    = lipgloss.Color("#0D0F14") // near-black space
-	BgSurface = lipgloss.Color("#13161E") // panel background
-	BgOverlay = lipgloss.Color("#1A1E2A") // elevated panels
-	BgMuted   = lipgloss.Color("#1F2433") // subtle backgrounds
-	BgSelect  = lipgloss.Color("#263045") // selected line
+	BgDeep    = lipgloss.Color("#090B10")
+	BgSurface = lipgloss.Color("#0F1219")
+	BgOverlay = lipgloss.Color("#161B26")
+	BgMuted   = lipgloss.Color("#1C2232")
+	BgSelect  = lipgloss.Color("#1E2840")
 
-	// SPRYZEX reds/oranges
-	SpryzexRed    = lipgloss.Color("#C1440E") // spryzex surface red
-	SpryzexBright = lipgloss.Color("#E85D26") // bright rust orange
-	SpryzexGlow   = lipgloss.Color("#FF6B35") // hot glow
-	SpryzexDust   = lipgloss.Color("#8B4513") // dark dust
+	SpryzexRed    = lipgloss.Color("#C1440E")
+	SpryzexBright = lipgloss.Color("#E85D26")
+	SpryzexGlow   = lipgloss.Color("#FF6B35")
+	SpryzexDust   = lipgloss.Color("#7A3A0A")
 
-	// Accent colors
-	PhobosBlue  = lipgloss.Color("#4A9EFF") // Phobos — icy blue
-	DeimosGold  = lipgloss.Color("#FFD700") // Deimos — golden
-	NebulaPurp  = lipgloss.Color("#B48EAD") // nebula purple
-	AuroraGreen = lipgloss.Color("#A3BE8C") // aurora green
-	CometCyan   = lipgloss.Color("#88C0D0") // comet cyan
+	PhobosBlue  = lipgloss.Color("#4A9EFF")
+	DeimosGold  = lipgloss.Color("#FFD700")
+	NebulaPurp  = lipgloss.Color("#B48EAD")
+	AuroraGreen = lipgloss.Color("#A3BE8C")
+	CometCyan   = lipgloss.Color("#88C0D0")
 
-	// Text
-	TextPrimary = lipgloss.Color("#E8EAF0") // main text
-	TextSecond  = lipgloss.Color("#9BA3B8") // secondary text
-	TextMuted   = lipgloss.Color("#5C6478") // muted text
-	TextComment = lipgloss.Color("#4A5268") // comments
+	TextPrimary = lipgloss.Color("#DCE0EC")
+	TextSecond  = lipgloss.Color("#8A93AE")
+	TextMuted   = lipgloss.Color("#485068")
+	TextComment = lipgloss.Color("#3A4256")
 
-	// Syntax highlighting colors
-	SynKeyword  = lipgloss.Color("#E85D26") // mnemonics — spryzex orange
-	SynLabel    = lipgloss.Color("#4A9EFF") // labels — phobos blue
-	SynNumber   = lipgloss.Color("#FFD700") // numbers — deimos gold
-	SynComment  = lipgloss.Color("#4A5268") // comments — dark
-	SynDirectiv = lipgloss.Color("#B48EAD") // directives — purple
-	SynReg      = lipgloss.Color("#88C0D0") // registers — cyan
-	SynString   = lipgloss.Color("#A3BE8C") // strings — green
+	SynKeyword  = lipgloss.Color("#FF6B35")
+	SynLabel    = lipgloss.Color("#4A9EFF")
+	SynNumber   = lipgloss.Color("#FFD700")
+	SynComment  = lipgloss.Color("#3E4A62")
+	SynDirectiv = lipgloss.Color("#B48EAD")
+	SynReg      = lipgloss.Color("#88C0D0")
+	SynString   = lipgloss.Color("#A3BE8C")
 
-	// Status colors
-	ColorOK       = lipgloss.Color("#A3BE8C") // green success
-	ColorError    = lipgloss.Color("#BF616A") // red error
-	ColorWarn     = lipgloss.Color("#EBCB8B") // yellow warning
-	ColorInfo     = lipgloss.Color("#4A9EFF") // blue info
-	ColorBuilding = lipgloss.Color("#FF6B35") // orange building
+	ColorOK       = lipgloss.Color("#A3BE8C")
+	ColorError    = lipgloss.Color("#BF616A")
+	ColorWarn     = lipgloss.Color("#EBCB8B")
+	ColorInfo     = lipgloss.Color("#4A9EFF")
+	ColorBuilding = lipgloss.Color("#FF6B35")
 
-	// Border styles
-	BorderSubtle  = lipgloss.Color("#1F2433")
-	BorderActive  = lipgloss.Color("#E85D26")
+	BorderSubtle  = lipgloss.Color("#1A2035")
+	BorderActive  = lipgloss.Color("#2A3550")
 	BorderFocused = lipgloss.Color("#4A9EFF")
 )
 
-// Styles — composed lipgloss styles used throughout
 var (
-	// Panel borders
 	PanelStyle = lipgloss.NewStyle().
 			Background(BgSurface).
 			BorderStyle(lipgloss.RoundedBorder()).
@@ -63,18 +53,16 @@ var (
 	ActivePanelStyle = lipgloss.NewStyle().
 				Background(BgSurface).
 				BorderStyle(lipgloss.RoundedBorder()).
-				BorderForeground(BorderActive)
+				BorderForeground(SpryzexRed)
 
-	// Title bar
 	TitleBarStyle = lipgloss.NewStyle().
 			Background(BgDeep).
 			Foreground(SpryzexGlow).
 			Bold(true)
 
-	// Mode indicator pill
 	ModeNormalStyle = lipgloss.NewStyle().
 			Background(SpryzexRed).
-			Foreground(TextPrimary).
+			Foreground(lipgloss.Color("#FFFFFF")).
 			Bold(true).
 			Padding(0, 1)
 
@@ -96,9 +84,8 @@ var (
 			Bold(true).
 			Padding(0, 1)
 
-	// Status bar
 	StatusBarStyle = lipgloss.NewStyle().
-			Background(BgMuted).
+			Background(BgDeep).
 			Foreground(TextSecond)
 
 	StatusOKStyle = lipgloss.NewStyle().
@@ -109,7 +96,7 @@ var (
 
 	StatusErrStyle = lipgloss.NewStyle().
 			Background(ColorError).
-			Foreground(TextPrimary).
+			Foreground(lipgloss.Color("#FFFFFF")).
 			Bold(true).
 			Padding(0, 1)
 
@@ -119,7 +106,6 @@ var (
 				Bold(true).
 				Padding(0, 1)
 
-	// Line numbers
 	LineNumStyle = lipgloss.NewStyle().
 			Foreground(TextMuted).
 			Background(BgSurface)
@@ -129,13 +115,12 @@ var (
 				Background(BgSurface).
 				Bold(true)
 
-	// Cursor line
 	CursorLineStyle = lipgloss.NewStyle().
 			Background(BgSelect)
 
-	// Tab styles
 	TabStyle = lipgloss.NewStyle().
 			Foreground(TextMuted).
+			Background(BgMuted).
 			Padding(0, 2)
 
 	TabActiveStyle = lipgloss.NewStyle().
@@ -143,7 +128,5 @@ var (
 			Background(BgOverlay).
 			Bold(true).
 			Padding(0, 2).
-			BorderStyle(lipgloss.NormalBorder()).
-			BorderBottom(false).
-			BorderForeground(SpryzexRed)
+			Underline(true)
 )

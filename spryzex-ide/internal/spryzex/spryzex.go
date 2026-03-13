@@ -3,6 +3,7 @@ package spryzex
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -10,89 +11,109 @@ import (
 	"spryzex-ide/internal/theme"
 )
 
-// BuildState controls animation mode
 type BuildState int
 
 const (
 	StateIdle     BuildState = iota
-	StateBuilding            // SPRYZEX spins fast, fire trails
-	StateSuccess             // Celebration burst
-	StateError               // Red pulse
-	StateRunning             // Smooth orbit
+	StateBuilding
+	StateSuccess
+	StateError
+	StateRunning
 )
 
-// Animator holds all animation state
+type star struct {
+	x, y    int
+	twinkle int
+}
+
 type Animator struct {
 	State         BuildState
 	StartTime     time.Time
 	Frame         int
-	spryzexAngleA float64 // SPRYZEX rotation angle A
-	spryzexAngleB float64 // SPRYZEX rotation angle B
-	phobosAngle   float64 // Phobos orbit angle
-	deimosAngle   float64 // Deimos orbit angle
-	fireFrame     int     // fire animation frame
-	burstFrame    int     // success burst frame
+	spryzexAngleA float64
+	spryzexAngleB float64
+	phobosAngle   float64
+	deimosAngle   float64
+	fireFrame     int
+	burstFrame    int
 	width         int
 	height        int
+	stars         []star
 }
 
-// NewAnimator creates the SPRYZEX animator
 func NewAnimator(w, h int) *Animator {
-	return &Animator{
+	a := &Animator{
 		State:     StateIdle,
 		StartTime: time.Now(),
 		width:     w,
 		height:    h,
 	}
+	a.initStars(w, h)
+	return a
 }
 
-// Tick advances animation by one frame
+func (a *Animator) initStars(w, h int) {
+	a.stars = a.stars[:0]
+	count := (w * h) / 20
+	if count > 40 {
+		count = 40
+	}
+	for i := 0; i < count; i++ {
+		a.stars = append(a.stars, star{
+			x:       rand.Intn(max1(w)),
+			y:       rand.Intn(max1(h)),
+			twinkle: rand.Intn(20),
+		})
+	}
+}
+
+func max1(n int) int {
+	if n < 1 {
+		return 1
+	}
+	return n
+}
+
 func (a *Animator) Tick() {
 	a.Frame++
 
-	// Speed varies by state
-	speed := 0.04
+	speed := 0.03
 	switch a.State {
 	case StateBuilding:
-		speed = 0.18 // crazy fast spin while building
+		speed = 0.15
 	case StateSuccess:
-		speed = 0.06
+		speed = 0.05
 		a.burstFrame++
 	case StateRunning:
-		speed = 0.05
+		speed = 0.04
 	}
 
 	a.spryzexAngleA += speed
-	a.spryzexAngleB += speed * 0.4
+	a.spryzexAngleB += speed * 0.37
 
-	// Phobos orbits fast (close to spryzex)
-	phobosSpeed := 0.12
+	phobosSpeed := 0.10
 	if a.State == StateBuilding {
-		phobosSpeed = 0.35
+		phobosSpeed = 0.30
 	}
 	a.phobosAngle += phobosSpeed
 
-	// Deimos orbits slow (far out)
-	deimosSpeed := 0.04
+	deimosSpeed := 0.035
 	if a.State == StateBuilding {
-		deimosSpeed = 0.12
+		deimosSpeed = 0.10
 	}
 	a.deimosAngle += deimosSpeed
 
 	a.fireFrame = (a.fireFrame + 1) % 8
 }
 
-// SetState changes animation state
 func (a *Animator) SetState(s BuildState) {
 	a.State = s
 	a.burstFrame = 0
 }
 
-// renderSpryzex renders the 3D spinning SPRYZEX sphere
-func (a *Animator) renderSpryzex(radius float64) [][]rune {
-	// Sphere size in terminal chars
-	rows := int(radius * 2.2)
-	cols := int(radius * 4.4)
+func (a *Animator) renderSphere(radius float64) ([][]rune, [][]int) {
+	cols := int(radius * 4.0)
+	rows := int(radius * 2.0)
 	if rows < 3 {
 		rows = 3
 	}
@@ -100,11 +121,12 @@ func (a *Animator) renderSpryzex(radius float64) [][]rune {
 		cols = 6
 	}
 
-	// Output buffer
 	buf := make([][]rune, rows)
+	light := make([][]int, rows)
 	zbuf := make([][]float64, rows)
 	for i := range buf {
 		buf[i] = make([]rune, cols)
+		light[i] = make([]int, cols)
 		zbuf[i] = make([]float64, cols)
 		for j := range buf[i] {
 			buf[i][j] = ' '
@@ -112,9 +134,7 @@ func (a *Animator) renderSpryzex(radius float64) [][]rune {
 		}
 	}
 
-	// 3D sphere rendering — Andy Sloane style
-	// Light source direction
-	lx, ly, lz := 0.6, -0.4, 0.7
+	lx, ly, lz := 0.7, -0.5, 0.5
 	lmag := math.Sqrt(lx*lx + ly*ly + lz*lz)
 	lx, ly, lz = lx/lmag, ly/lmag, lz/lmag
 
@@ -123,35 +143,26 @@ func (a *Animator) renderSpryzex(radius float64) [][]rune {
 	cosB := math.Cos(a.spryzexAngleB)
 	sinB := math.Sin(a.spryzexAngleB)
 
-	// ASCII shading chars — bright to dark
-	shading := []rune{'@', '#', 'S', '%', '?', '*', '+', ';', ':', ',', '.', ' '}
+	shading := []rune{'█', '▓', '▓', '▒', '▒', '░', '·'}
 
-	for theta := 0.0; theta < 2*math.Pi; theta += 0.04 {
-		for phi := 0.0; phi < 2*math.Pi; phi += 0.02 {
+	for theta := 0.0; theta < 2*math.Pi; theta += 0.035 {
+		for phi := 0.0; phi < 2*math.Pi; phi += 0.018 {
 			sinTheta := math.Sin(theta)
 			cosTheta := math.Cos(theta)
 			sinPhi := math.Sin(phi)
 			cosPhi := math.Cos(phi)
 
-			// Point on sphere
 			x := sinTheta * cosPhi
 			y := sinTheta * sinPhi
 			z := cosTheta
 
-			// Rotate around Y (A) then X (B)
 			x2 := x*cosA - z*sinA
 			z2 := x*sinA + z*cosA
 			y2 := y*cosB - z2*sinB
 			z3 := y*sinB + z2*cosB
 
-			// Project to screen
-			zProj := z3 + 3.5
-			if zProj <= 0 {
-				continue
-			}
-			inv := 1.0 / zProj
-			sx := int(float64(cols)/2 + radius*2.0*x2*inv)
-			sy := int(float64(rows)/2 - radius*1.0*y2*inv)
+			sx := int(float64(cols)/2.0 + radius*2.0*x2)
+			sy := int(float64(rows)/2.0 - radius*y2)
 
 			if sx < 0 || sx >= cols || sy < 0 || sy >= rows {
 				continue
@@ -162,29 +173,33 @@ func (a *Animator) renderSpryzex(radius float64) [][]rune {
 			}
 			zbuf[sy][sx] = z3
 
-			// Normal at this point (same as position on unit sphere)
-			// Dot product with light
 			dot := x2*lx + y2*ly + z3*lz
 			if dot < 0 {
 				dot = 0
 			}
 
-			idx := int(dot * float64(len(shading)-2))
-			if idx >= len(shading)-1 {
-				idx = len(shading) - 2
+			idx := int(dot * float64(len(shading)-1))
+			if idx >= len(shading) {
+				idx = len(shading) - 1
 			}
 			buf[sy][sx] = shading[idx]
+			light[sy][sx] = idx
 		}
 	}
 
-	return buf
+	return buf, light
 }
 
-// Render returns the full SPRYZEX panel as a styled string
 func (a *Animator) Render(panelWidth, panelHeight int) string {
 	var sb strings.Builder
 	if panelWidth < 1 || panelHeight < 1 {
 		return ""
+	}
+
+	if len(a.stars) == 0 || panelWidth != a.width || panelHeight != a.height {
+		a.width = panelWidth
+		a.height = panelHeight
+		a.initStars(panelWidth, panelHeight)
 	}
 
 	infoLines := 0
@@ -199,32 +214,20 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 		infoLines = 0
 	}
 
-	// Dynamic radius based on panel size
-	radiusByHeight := float64(artHeight) * 0.30
-	radiusByWidth := float64(panelWidth) * 0.24
-	radius := math.Min(radiusByHeight, radiusByWidth)
-	if radius < 4 {
-		radius = 4
+	radiusByH := float64(artHeight) * 0.26
+	radiusByW := float64(panelWidth) * 0.20
+	radius := math.Min(radiusByH, radiusByW)
+	if radius < 3 {
+		radius = 3
 	}
 
-	sphere := a.renderSpryzex(radius)
+	sphere, lightmap := a.renderSphere(radius)
 	sphereRows := len(sphere)
-	var sphereCols int
+	sphereCols := 0
 	if sphereRows > 0 {
 		sphereCols = len(sphere[0])
 	}
 
-	// Phobos: small, close, fast orbit
-	phobosOrbitR := radius * 2.2
-	phobosX := float64(panelWidth/2) + math.Cos(a.phobosAngle)*phobosOrbitR*2
-	phobosY := float64(artHeight/2) + math.Sin(a.phobosAngle)*phobosOrbitR*0.5
-
-	// Deimos: tiny, far, slow orbit
-	deimosOrbitR := radius * 3.2
-	deimosX := float64(panelWidth/2) + math.Cos(a.deimosAngle+math.Pi)*deimosOrbitR*2
-	deimosY := float64(artHeight/2) + math.Sin(a.deimosAngle+math.Pi)*deimosOrbitR*0.5
-
-	// Build char grid
 	grid := make([][]string, artHeight)
 	for i := range grid {
 		grid[i] = make([]string, panelWidth)
@@ -233,95 +236,95 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 		}
 	}
 
-	// SPRYZEX sphere offset so it's centered
+	a.drawStarfield(grid, panelWidth, artHeight)
+
 	sphereOffY := (artHeight - sphereRows) / 2
 	sphereOffX := (panelWidth - sphereCols) / 2
 
-	// Color function for SPRYZEX sphere chars
-	spryzexColor := func(ch rune) string {
-		s := string(ch)
-		if ch == '@' || ch == '#' {
-			return lipgloss.NewStyle().Foreground(theme.SpryzexRed).Bold(true).Render(s)
-		} else if ch == 'S' || ch == '%' {
-			return lipgloss.NewStyle().Foreground(theme.SpryzexBright).Render(s)
-		} else if ch == '?' || ch == '*' {
-			return lipgloss.NewStyle().Foreground(theme.SpryzexGlow).Render(s)
-		} else if ch == '+' || ch == ';' {
-			return lipgloss.NewStyle().Foreground(theme.SpryzexDust).Render(s)
-		} else if ch != ' ' {
-			return lipgloss.NewStyle().Foreground(theme.SpryzexDust).Render(s)
-		}
-		return " "
-	}
+	phobosOrbitRx := radius * 2.4
+	phobosOrbitRy := radius * 0.55
+	deimosOrbitRx := radius * 3.6
+	deimosOrbitRy := radius * 0.75
 
-	// Fill sphere
-	for row := 0; row < sphereRows; row++ {
-		for col := 0; col < sphereCols; col++ {
-			gy := sphereOffY + row
-			gx := sphereOffX + col
-			if gy >= 0 && gy < artHeight && gx >= 0 && gx < panelWidth {
-				ch := sphere[row][col]
-				if ch != ' ' {
-					grid[gy][gx] = spryzexColor(ch)
-				}
-			}
-		}
-	}
+	cx := float64(panelWidth) / 2.0
+	cy := float64(artHeight) / 2.0
 
-	// Orbit trails (dotted ellipses)
 	phobosStyle := lipgloss.NewStyle().Foreground(theme.PhobosBlue)
 	deimosStyle := lipgloss.NewStyle().Foreground(theme.DeimosGold)
 
-	// Draw Phobos orbit dots
-	for t := 0.0; t < 2*math.Pi; t += 0.15 {
-		ox := int(float64(panelWidth/2) + math.Cos(t)*phobosOrbitR*2)
-		oy := int(float64(artHeight/2) + math.Sin(t)*phobosOrbitR*0.5)
+	for t := 0.0; t < 2*math.Pi; t += 0.12 {
+		ox := int(cx + math.Cos(t)*phobosOrbitRx)
+		oy := int(cy + math.Sin(t)*phobosOrbitRy)
 		if ox >= 0 && ox < panelWidth && oy >= 0 && oy < artHeight && grid[oy][ox] == " " {
 			grid[oy][ox] = phobosStyle.Render("·")
 		}
 	}
 
-	// Draw Deimos orbit dots
-	for t := 0.0; t < 2*math.Pi; t += 0.25 {
-		ox := int(float64(panelWidth/2) + math.Cos(t)*deimosOrbitR*2)
-		oy := int(float64(artHeight/2) + math.Sin(t)*deimosOrbitR*0.5)
+	for t := 0.0; t < 2*math.Pi; t += 0.18 {
+		ox := int(cx + math.Cos(t)*deimosOrbitRx)
+		oy := int(cy + math.Sin(t)*deimosOrbitRy)
 		if ox >= 0 && ox < panelWidth && oy >= 0 && oy < artHeight && grid[oy][ox] == " " {
 			grid[oy][ox] = deimosStyle.Render("·")
 		}
 	}
 
-	// Draw Phobos moon
+	for row := 0; row < sphereRows; row++ {
+		for col := 0; col < sphereCols; col++ {
+			gy := sphereOffY + row
+			gx := sphereOffX + col
+			if gy < 0 || gy >= artHeight || gx < 0 || gx >= panelWidth {
+				continue
+			}
+			ch := sphere[row][col]
+			if ch == ' ' {
+				continue
+			}
+			li := lightmap[row][col]
+			var color lipgloss.Color
+			switch {
+			case li == 0:
+				color = theme.SpryzexGlow
+			case li <= 1:
+				color = theme.SpryzexBright
+			case li <= 3:
+				color = theme.SpryzexRed
+			default:
+				color = theme.SpryzexDust
+			}
+			style := lipgloss.NewStyle().Foreground(color)
+			if li <= 1 {
+				style = style.Bold(true)
+			}
+			grid[gy][gx] = style.Render(string(ch))
+		}
+	}
+
+	phobosX := cx + math.Cos(a.phobosAngle)*phobosOrbitRx
+	phobosY := cy + math.Sin(a.phobosAngle)*phobosOrbitRy
+	deimosX := cx + math.Cos(a.deimosAngle+math.Pi)*deimosOrbitRx
+	deimosY := cy + math.Sin(a.deimosAngle+math.Pi)*deimosOrbitRy
+
 	py := int(phobosY)
 	px := int(phobosX)
-	if px >= 0 && px < panelWidth-1 && py >= 0 && py < artHeight {
-		moonStr := phobosStyle.Bold(true).Render("◉")
-		grid[py][px] = moonStr
+	if px >= 0 && px < panelWidth && py >= 0 && py < artHeight {
+		grid[py][px] = phobosStyle.Bold(true).Render("◉")
 	}
 
-	// Draw Deimos moon
 	dy := int(deimosY)
 	dx := int(deimosX)
-	if dx >= 0 && dx < panelWidth-1 && dy >= 0 && dy < artHeight {
-		moonStr := deimosStyle.Bold(true).Render("●")
-		grid[dy][dx] = moonStr
+	if dx >= 0 && dx < panelWidth && dy >= 0 && dy < artHeight {
+		grid[dy][dx] = deimosStyle.Bold(true).Render("◉")
 	}
 
-	// Fire particles when building
-	if a.State == StateBuilding {
+	switch a.State {
+	case StateBuilding:
 		a.drawFire(grid, panelWidth, artHeight, sphereOffX, sphereOffY, sphereRows, sphereCols)
-	}
-
-	// Success burst
-	if a.State == StateSuccess {
+	case StateSuccess:
 		a.drawBurst(grid, panelWidth, artHeight)
-	}
-
-	// Error pulse
-	if a.State == StateError {
+	case StateError:
 		a.drawErrorPulse(grid, panelWidth, artHeight)
 	}
 
-	// Render grid to string
 	for row := 0; row < artHeight; row++ {
 		for col := 0; col < panelWidth; col++ {
 			sb.WriteString(grid[row][col])
@@ -332,32 +335,60 @@ func (a *Animator) Render(panelWidth, panelHeight int) string {
 	}
 
 	if infoLines >= 1 {
+		label := a.stateLabel()
 		sb.WriteString(lipgloss.NewStyle().
 			Width(panelWidth).
 			Align(lipgloss.Center).
 			Foreground(a.stateColor()).
 			Bold(true).
-			Render(a.stateLabel()))
+			Render(label))
 	}
 
 	if infoLines >= 2 {
 		sb.WriteRune('\n')
-		sb.WriteString(lipgloss.NewStyle().
-			Width(panelWidth).
-			Align(lipgloss.Center).
-			Foreground(theme.TextMuted).
-			Render("Phobos / Deimos"))
+		phText := lipgloss.NewStyle().Foreground(theme.PhobosBlue).Bold(true).Render("◉ Phobos")
+		dmText := lipgloss.NewStyle().Foreground(theme.DeimosGold).Bold(true).Render("◉ Deimos")
+		sep := lipgloss.NewStyle().Foreground(theme.TextMuted).Render("  ·  ")
+		moons := phText + sep + dmText
+		moonsW := lipgloss.Width(moons)
+		padLeft := (panelWidth - moonsW) / 2
+		if padLeft < 0 {
+			padLeft = 0
+		}
+		sb.WriteString(strings.Repeat(" ", padLeft))
+		sb.WriteString(moons)
 	}
 
 	return sb.String()
 }
 
-var fireChars = []rune{'▲', '△', '∧', '^', '`', '\'', ' '}
-var fireColors = []lipgloss.Color{"#FF0000", "#FF3300", "#FF6600", "#FF9900", "#FFCC00", "#FFFF00"}
+func (a *Animator) drawStarfield(grid [][]string, pw, ph int) {
+	starChars := []string{"⋆", "·", "∘", "⋅"}
+	starColors := []lipgloss.Color{"#2A3050", "#252840", "#1E2238", "#1A1D30"}
+	for _, s := range a.stars {
+		if s.x >= pw || s.y >= ph {
+			continue
+		}
+		if grid[s.y][s.x] != " " {
+			continue
+		}
+		twinklePhase := (a.Frame + s.twinkle) % 30
+		if twinklePhase > 20 {
+			continue
+		}
+		charIdx := (s.x + s.y) % len(starChars)
+		colorIdx := (s.x*3 + s.y*7) % len(starColors)
+		grid[s.y][s.x] = lipgloss.NewStyle().
+			Foreground(starColors[colorIdx]).
+			Render(starChars[charIdx])
+	}
+}
+
+var fireChars = []rune{'▲', '△', '∧', '˄', '`', ' '}
+var fireColors = []lipgloss.Color{"#FF0000", "#FF3300", "#FF6600", "#FF9900", "#FFCC00", "#FFEE44"}
 
 func (a *Animator) drawFire(grid [][]string, pw, ph, sox, soy, sr, sc int) {
-	// Emit fire particles below the sphere
-	baseY := soy + sr - 1
+	baseY := soy + sr
 	baseXStart := sox + sc/4
 	baseXEnd := sox + 3*sc/4
 
@@ -365,25 +396,20 @@ func (a *Animator) drawFire(grid [][]string, pw, ph, sox, soy, sr, sc int) {
 		if x < 0 || x >= pw {
 			continue
 		}
-		// How many rows of fire
-		fireH := int(3 + math.Sin(float64(a.fireFrame+x)*0.7)*2)
+		fireH := int(3 + math.Sin(float64(a.fireFrame+x)*0.8)*2)
 		for fy := 0; fy < fireH; fy++ {
-			gy := baseY + 1 + fy
+			gy := baseY + fy
 			if gy < 0 || gy >= ph {
 				continue
 			}
-			charIdx := fy
-			if charIdx >= len(fireChars)-1 {
-				charIdx = len(fireChars) - 2
+			flickerIdx := (a.fireFrame + x + fy) % len(fireChars)
+			ch := fireChars[flickerIdx]
+			if ch == ' ' {
+				continue
 			}
 			colorIdx := fy
 			if colorIdx >= len(fireColors) {
 				colorIdx = len(fireColors) - 1
-			}
-			flickerIdx := (a.fireFrame + x + fy) % len(fireChars)
-			ch := fireChars[flickerIdx%len(fireChars)]
-			if ch == ' ' {
-				continue
 			}
 			grid[gy][x] = lipgloss.NewStyle().
 				Foreground(fireColors[colorIdx]).
@@ -393,10 +419,11 @@ func (a *Animator) drawFire(grid [][]string, pw, ph, sox, soy, sr, sc int) {
 	}
 }
 
-var burstChars = []string{"✦", "✧", "★", "☆", "*", "+", "·"}
+var burstChars = []string{"✦", "✧", "★", "✸", "✹", "✺", "✼", "·"}
 var burstColors = []lipgloss.Color{
 	theme.DeimosGold, theme.SpryzexGlow, theme.AuroraGreen,
 	theme.PhobosBlue, theme.NebulaPurp, theme.CometCyan,
+	theme.SpryzexBright, theme.DeimosGold,
 }
 
 func (a *Animator) drawBurst(grid [][]string, pw, ph int) {
@@ -404,11 +431,11 @@ func (a *Animator) drawBurst(grid [][]string, pw, ph int) {
 	cy := ph / 2
 	frame := float64(a.burstFrame)
 
-	for i := 0; i < 12; i++ {
-		angle := float64(i) * math.Pi / 6.0
-		dist := frame * 0.4
-		x := int(float64(cx) + math.Cos(angle)*dist*2)
-		y := int(float64(cy) + math.Sin(angle)*dist*0.5)
+	for i := 0; i < 16; i++ {
+		angle := float64(i) * math.Pi / 8.0
+		dist := frame * 0.35
+		x := int(float64(cx) + math.Cos(angle)*dist*2.0)
+		y := int(float64(cy) + math.Sin(angle)*dist*0.6)
 		if x >= 0 && x < pw && y >= 0 && y < ph {
 			ch := burstChars[i%len(burstChars)]
 			color := burstColors[i%len(burstColors)]
@@ -418,17 +445,20 @@ func (a *Animator) drawBurst(grid [][]string, pw, ph int) {
 }
 
 func (a *Animator) drawErrorPulse(grid [][]string, pw, ph int) {
-	pulse := math.Sin(float64(a.Frame) * 0.3)
-	if pulse > 0.5 {
-		// Flash red X markers at corners of spryzex
+	pulse := math.Sin(float64(a.Frame) * 0.25)
+	if pulse > 0.3 {
 		markers := [][2]int{
-			{ph/2 - 3, pw/2 - 6}, {ph/2 - 3, pw/2 + 6},
-			{ph/2 + 3, pw/2 - 6}, {ph/2 + 3, pw/2 + 6},
+			{ph/2 - 2, pw/2 - 5}, {ph/2 - 2, pw/2 + 5},
+			{ph/2 + 2, pw/2 - 5}, {ph/2 + 2, pw/2 + 5},
+		}
+		intensity := lipgloss.Color("#BF616A")
+		if pulse > 0.7 {
+			intensity = lipgloss.Color("#FF4455")
 		}
 		for _, m := range markers {
 			if m[0] >= 0 && m[0] < ph && m[1] >= 0 && m[1] < pw {
 				grid[m[0]][m[1]] = lipgloss.NewStyle().
-					Foreground(theme.ColorError).Bold(true).Render("✗")
+					Foreground(intensity).Bold(true).Render("✗")
 			}
 		}
 	}
@@ -437,16 +467,18 @@ func (a *Animator) drawErrorPulse(grid [][]string, pw, ph int) {
 func (a *Animator) stateLabel() string {
 	switch a.State {
 	case StateBuilding:
-		frames := []string{"ASSEMBLING ▪▪▪", "ASSEMBLING ▪▪ ", "ASSEMBLING ▪  ", "ASSEMBLING    "}
-		return frames[(a.Frame/3)%len(frames)]
+		dots := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		spinner := dots[(a.Frame/2)%len(dots)]
+		return fmt.Sprintf("%s ASSEMBLING %s", spinner, spinner)
 	case StateSuccess:
-		return "✓ BUILD OK — SPRYZEX IS PLEASED"
+		return "✦ BUILD OK — SPRYZEX PLEASED ✦"
 	case StateError:
 		return "✗ BUILD FAILED"
 	case StateRunning:
-		return "▶ EMULATOR RUNNING"
+		frames := []string{"▶ RUNNING ·", "▶ RUNNING ··", "▶ RUNNING ···"}
+		return frames[(a.Frame/4)%len(frames)]
 	default:
-		return "SPRYZEX IDE  ·  READY"
+		return "◈ SPRYZEX  ·  READY"
 	}
 }
 
@@ -461,11 +493,10 @@ func (a *Animator) stateColor() lipgloss.Color {
 	case StateRunning:
 		return theme.PhobosBlue
 	default:
-		return theme.TextSecond
+		return theme.SpryzexBright
 	}
 }
 
-// BuildingFrames returns animation frames as a tea.Cmd tick
 func TickCmd() func() (string, error) {
 	return func() (string, error) {
 		time.Sleep(50 * time.Millisecond)
