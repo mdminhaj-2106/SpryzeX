@@ -1,7 +1,7 @@
 /*
  * pass1.c - Pass 1: build symbol table, validate instructions and operands
- * Author: [YOUR FULL NAME]
- * User ID: [YOUR USER ID]
+ * Author: Md Minhaj Uddin
+ * Roll: 2401CS39
  * Declaration: I declare that this code is my own work.
  */
 #include <stdio.h>

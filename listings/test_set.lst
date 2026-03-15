@@ -1,0 +1,8 @@
+Line	Addr	Machine Code	Source
+----	----	------------	------
+1	    	        	; Success: Demonstrates SET directive. "label: SET value" defines a symbol without
+2	    	        	; consuming a word of code. We use max: SET 100 then output 100.
+3	0000	        	max: SET 100
+4	0000	00006400	    ldc max
+5	0001	00000015	    out
+6	0002	00000012	    HALT

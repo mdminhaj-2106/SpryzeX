@@ -1,7 +1,7 @@
 /*
  * emu.c - SpryzeX emulator CLI (load object, run, trace, memory dump)
- * Author: [YOUR FULL NAME]
- * User ID: [YOUR USER ID]
+ * Author: Md Minhaj Uddin
+ * Roll: 2401CS39
  * Declaration: I declare that this code is my own work.
  */
 #include <stdio.h>
@@ -9,7 +9,7 @@
 #include <string.h>
 #include "cpu.h"
 
-void display_help() {
+void display_help(void) {
     printf("SpryzeX Emulator\n");
     printf("Usage: ./emu [flags] program.o\n");
     printf("Flags (can be combined):\n");
@@ -23,18 +23,18 @@ void display_help() {
 
 int main(int argc, char *argv[])
 {
+    char *filename = NULL;
+    int trace_mode = 0;   /* 0: none, 1: trace, 2: read, 3: write */
+    int before_dump = 0;
+    int after_dump = 0;
+    int i;
+    int size;
+
     if(argc < 2)
     {
         display_help();
         return 1;
     }
-
-    char *filename = NULL;
-    int trace_mode = 0;   /* 0: none, 1: trace, 2: read, 3: write */
-    int before_dump = 0;
-    int after_dump = 0;
-
-    int i;
     for (i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-help") == 0) {
             display_help();
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 
     init_cpu();
 
-    int size = load_object(filename);
+    size = load_object(filename);
     if (size < 0) return 1;
 
     printf("Loaded %d instructions into memory\n", size);

@@ -254,6 +254,14 @@ Examples: `test_add.asm`, `test_undefined_label.asm`, `test_duplicate_label.asm`
 
 ---
 
+## Submission (course / marking)
+
+- **Evidence:** Build with `make`, then assemble and run any test (e.g. `./asm samples/code.asm && ./emu outputs/code.o`). Inspect `outputs/`, `listings/`, `logs/` for generated files.
+- **Claims:** See [claims.txt](claims.txt) for the list of claims against the marking scheme (general, assembler, emulator, test cases).
+- **Author:** Md Minhaj Uddin · **Roll:** 2401CS39 (in all assembler and emulator source files).
+
+---
+
 ## License
 
 See [LICENSE](LICENSE).

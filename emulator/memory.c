@@ -1,7 +1,7 @@
 /*
  * memory.c - Load object file and memory dump
- * Author: [YOUR FULL NAME]
- * User ID: [YOUR USER ID]
+ * Author: Md Minhaj Uddin
+ * Roll: 2401CS39
  * Declaration: I declare that this code is my own work.
  */
 #include <stdio.h>
@@ -12,13 +12,14 @@ int memory[MEM_SIZE];
 
 /* loading object file into memory */
 int load_object(const char *filename) {
-    FILE *file = fopen(filename, "rb");
+    FILE *file;
+    int count = 0;
+
+    file = fopen(filename, "rb");
     if (!file) {
         printf("Error: Could not open file %s\n", filename);
         return -1;
     }
-
-    int count = 0;
     while (fread(&memory[count], sizeof(int), 1, file)) {
         count++;
         if (count >= MEM_SIZE) {

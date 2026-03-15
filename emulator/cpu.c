@@ -1,7 +1,7 @@
 /*
  * cpu.c - CPU init, instruction execution, run loop
- * Author: [YOUR FULL NAME]
- * User ID: [YOUR USER ID]
+ * Author: Md Minhaj Uddin
+ * Roll: 2401CS39
  * Declaration: I declare that this code is my own work.
  */
 #include <stdio.h>
@@ -11,7 +11,7 @@
 CPU cpu;
 
 /* humble cpu initialization */
-void init_cpu() {
+void init_cpu(void) {
     cpu.A = 0;
     cpu.B = 0;
     cpu.PC = 0;
@@ -28,7 +28,7 @@ void execute_instruction(int instruction, int trace_mode) {
         operand |= 0xFF000000;
     }
 
-    if (trace_mode == 1) { // -trace flag
+    if (trace_mode == 1) {  /* -trace flag */
         trace_registers();
     }
     

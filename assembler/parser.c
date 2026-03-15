@@ -1,7 +1,7 @@
 /*
  * parser.c - Line parser and symbol table debug print
- * Author: [YOUR FULL NAME]
- * User ID: [YOUR USER ID]
+ * Author: Md Minhaj Uddin
+ * Roll: 2401CS39
  * Declaration: I declare that this code is my own work.
  */
 #include <stdio.h>
@@ -15,10 +15,11 @@
 /* the heavenly parser who parses a line and stores it in ParsedLine */
 void parse_line(char *line, ParsedLine *out)
 {
-    char *comment = strchr(line, ';');
-    if (comment) *comment = '\0';
-
+    char *comment;
     char *token;
+
+    comment = strchr(line, ';');
+    if (comment) *comment = '\0';
 
     out->label[0] = '\0';
     out->mnemonic[0] = '\0';
@@ -52,7 +53,7 @@ void parse_line(char *line, ParsedLine *out)
 
 
 /* logging SymbolTable onto terminal for debugging */
-void print_symbol_table()
+void print_symbol_table(void)
 {
     int i;
 

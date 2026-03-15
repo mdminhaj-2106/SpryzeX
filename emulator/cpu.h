@@ -1,7 +1,7 @@
 /*
  * cpu.h - CPU state, memory, and execution interface
- * Author: [YOUR FULL NAME]
- * User ID: [YOUR USER ID]
+ * Author: Md Minhaj Uddin
+ * Roll: 2401CS39
  * Declaration: I declare that this code is my own work.
  */
 #ifndef CPU_H
@@ -20,7 +20,7 @@ extern int memory[MEM_SIZE];
 extern CPU cpu;
 
 /* cpu functions */
-void init_cpu();
+void init_cpu(void);
 void execute_instruction(int instruction, int trace_mode);
 void run_cpu(int limit, int trace_mode);
 
@@ -29,7 +29,7 @@ int load_object(const char *filename);
 void dump_memory(int limit);
 
 /* trace functions */
-void trace_registers();
+void trace_registers(void);
 void trace_read(int address, int value);
 void trace_write(int address, int old_val, int new_val);
 

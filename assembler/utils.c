@@ -1,7 +1,7 @@
 /*
  * utils.c - Symbol table, encode, log, paths, base validation
- * Author: [YOUR FULL NAME]
- * User ID: [YOUR USER ID]
+ * Author: Md Minhaj Uddin
+ * Roll: 2401CS39
  * Declaration: I declare that this code is my own work.
  */
 #include <stdio.h>
@@ -64,15 +64,16 @@ int is_decimal(const char *s) {
 /* read_source reads .asm line-line and return stores it in lines[] */
 int read_source(const char *filename, char lines[][MAX_LINE_LENGTH])
 {
-    FILE *file = fopen(filename, "r");
+    FILE *file;
+    int count = 0;
+
+    file = fopen(filename, "r");
 
     if(file == NULL)
     {
         printf("Error opening file\n");
         return -1;
     }
-
-    int count = 0;
 
     while(fgets(lines[count], MAX_LINE_LENGTH, file))
     {
@@ -156,7 +157,7 @@ void add_symbol(char *label, int address, int line)
 }
 
 /* Checking Undefined Labels */
-void check_undefined_labels()
+void check_undefined_labels(void)
 {
     int i;
 
@@ -173,7 +174,7 @@ void check_undefined_labels()
 }
 
 /* Detect Unused Labels(Warning) */
-void check_unused_labels()
+void check_unused_labels(void)
 {
     int i, j, used;
 

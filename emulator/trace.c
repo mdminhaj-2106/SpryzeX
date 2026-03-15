@@ -1,14 +1,14 @@
 /*
  * trace.c - Register and memory trace output for debug
- * Author: [YOUR FULL NAME]
- * User ID: [YOUR USER ID]
+ * Author: Md Minhaj Uddin
+ * Roll: 2401CS39
  * Declaration: I declare that this code is my own work.
  */
 #include <stdio.h>
 #include "cpu.h"
 
 /* Registers trace */
-void trace_registers() {
+void trace_registers(void) {
     printf("PC: %08X SP: %08X A: %08X B: %08X ", cpu.PC, cpu.SP, cpu.A, cpu.B);
 }
 

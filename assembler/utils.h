@@ -1,7 +1,7 @@
 /*
  * utils.h - Assembler utilities (symbols, encode, log, paths)
- * Author: [YOUR FULL NAME]
- * User ID: [YOUR USER ID]
+ * Author: Md Minhaj Uddin
+ * Roll: 2401CS39
  * Declaration: I declare that this code is my own work.
  */
 #ifndef UTILS_H
@@ -14,8 +14,8 @@ Instruction* find_instruction(char *name);
 int find_symbol(char *label);
 void add_symbol(char *label, int address, int line);
 void record_reference(char *label, int line);
-void check_undefined_labels();
-void check_unused_labels();
+void check_undefined_labels(void);
+void check_unused_labels(void);
 void add_log_entry(const char *message, int line, int is_error);
 int resolve_operand(char *operand, int current_address, int is_branch);
 unsigned int encode_instruction(ParsedLine *line);

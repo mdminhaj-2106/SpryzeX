@@ -1,7 +1,7 @@
 /*
  * pass2.c - Pass 2: generate machine code, write .o, .lst, .log
- * Author: [YOUR FULL NAME]
- * User ID: [YOUR USER ID]
+ * Author: Md Minhaj Uddin
+ * Roll: 2401CS39
  * Declaration: I declare that this code is my own work.
  */
 #include <stdio.h>
@@ -36,7 +36,7 @@ void pass2_generate_code(ParsedLine program[], int count)
         if (strcmp(program[i].mnemonic, "SET") != 0) {
             machine_code[machine_count++] = code;
         } else {
-            program[i].has_machine_code = 0; // Don't show in listing as machine code
+            program[i].has_machine_code = 0;  /* SET: no machine word in listing */
         }
     }
 }
@@ -44,15 +44,16 @@ void pass2_generate_code(ParsedLine program[], int count)
 /* Write onto an object/binary file */
 void write_object_file(const char *filename)
 {
-    FILE *file = fopen(filename, "wb");
+    FILE *file;
+    int i;
+
+    file = fopen(filename, "wb");
 
     if(file == NULL)
     {
         printf("Error creating object file: %s\n", filename);
         return;
     }
-
-    int i;
 
     for(i = 0; i < machine_count; i++)
     {
@@ -67,15 +68,16 @@ void write_object_file(const char *filename)
 /* Write listing file (.lst) */
 void write_listing_file(const char *filename, ParsedLine program[], int count)
 {
-    FILE *file = fopen(filename, "w");
+    FILE *file;
+    int i;
+
+    file = fopen(filename, "w");
 
     if(file == NULL)
     {
         printf("Error creating listing file: %s\n", filename);
         return;
     }
-
-    int i;
     fprintf(file, "Line\tAddr\tMachine Code\tSource\n");
     fprintf(file, "----\t----\t------------\t------\n");
 
@@ -111,15 +113,16 @@ void write_listing_file(const char *filename, ParsedLine program[], int count)
 /* Write log file (.log) */
 void write_log_file(const char *filename)
 {
-    FILE *file = fopen(filename, "w");
+    FILE *file;
+    int i;
+
+    file = fopen(filename, "w");
 
     if(file == NULL)
     {
         printf("Error creating log file: %s\n", filename);
         return;
     }
-
-    int i;
     fprintf(file, "Assembler Log\n");
     fprintf(file, "=============\n\n");
 
