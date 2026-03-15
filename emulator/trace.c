@@ -1,3 +1,9 @@
+/*
+ * trace.c - Register and memory trace output for debug
+ * Author: [YOUR FULL NAME]
+ * User ID: [YOUR USER ID]
+ * Declaration: I declare that this code is my own work.
+ */
 #include <stdio.h>
 #include "cpu.h"
 

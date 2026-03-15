@@ -1,3 +1,9 @@
+/*
+ * utils.c - Symbol table, encode, log, paths, base validation
+ * Author: [YOUR FULL NAME]
+ * User ID: [YOUR USER ID]
+ * Declaration: I declare that this code is my own work.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,8 +19,9 @@ int is_digit(char c) {
 
 /* check if label is a valid one */
 int is_valid_label(const char *label) {
+    int i;
     if (!isalpha(label[0])) return 0;
-    for (int i = 1; label[i] != '\0'; i++) {
+    for (i = 1; label[i] != '\0'; i++) {
         if (!isalnum(label[i]) && label[i] != '_') return 0;
     }
     return 1;
@@ -22,9 +29,10 @@ int is_valid_label(const char *label) {
 
 /* check if string is hex */
 int is_hex(const char *s) {
+    int i;
     if (strlen(s) < 3) return 0;
     if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
-        for (int i = 2; s[i] != '\0'; i++) {
+        for (i = 2; s[i] != '\0'; i++) {
             if (!isxdigit(s[i])) return 0;
         }
         return 1;
@@ -34,8 +42,9 @@ int is_hex(const char *s) {
 
 /* check if string is octal */
 int is_octal(const char *s) {
+    int i;
     if (strlen(s) < 2 || s[0] != '0') return 0;
-    for (int i = 1; s[i] != '\0'; i++) {
+    for (i = 1; s[i] != '\0'; i++) {
         if (s[i] < '0' || s[i] > '7') return 0;
     }
     return 1;
@@ -44,8 +53,9 @@ int is_octal(const char *s) {
 /* check if string is decimal */
 int is_decimal(const char *s) {
     int start = (s[0] == '-' || s[0] == '+') ? 1 : 0;
+    int i;
     if (s[start] == '\0') return 0;
-    for (int i = start; s[i] != '\0'; i++) {
+    for (i = start; s[i] != '\0'; i++) {
         if (!isdigit(s[i])) return 0;
     }
     return 1;
@@ -208,6 +218,8 @@ void add_log_entry(const char *message, int line, int is_error)
 int resolve_operand(char *operand, int current_address, int is_branch)
 {
     int value;
+    int idx;
+    char msg[256];
 
     if (is_hex(operand)) {
         value = (int)strtol(operand, NULL, 16);
@@ -220,11 +232,10 @@ int resolve_operand(char *operand, int current_address, int is_branch)
     }
     else
     {
-        int idx = find_symbol(operand);
+        idx = find_symbol(operand);
 
         if(idx == -1)
         {
-            char msg[256];
             sprintf(msg, "Error: undefined label %s", operand);
             add_log_entry(msg, -1, 1);
             printf("%s\n", msg);
@@ -246,39 +257,38 @@ int resolve_operand(char *operand, int current_address, int is_branch)
 /* Encode the instruction into machine_code */
 unsigned int encode_instruction(ParsedLine *line)
 {
-    Instruction *inst = find_instruction(line->mnemonic);
+    Instruction *inst;
+    int operand = 0;
+    int is_branch;
+    unsigned int code;
+    char msg[256];
+
+    inst = find_instruction(line->mnemonic);
 
     if(inst == NULL)
         return 0;
 
-    /* Special handling for data directive */
     if (strcmp(line->mnemonic, "data") == 0) {
         return (unsigned int)resolve_operand(line->operand, line->address, 0);
     }
-    
-    /* SET doesn't generate code in this architecture usually, 
-       but we can use it to define symbols. Pass1 handles it if it's a label.
-       For now, let's just return 0 for SET as it's a directive. */
+
     if (strcmp(line->mnemonic, "SET") == 0) {
         return 0;
     }
 
-    int operand = 0;
-
     if(inst->operand_type != 0)
     {
         if (strlen(line->operand) == 0) {
-            char msg[256];
             sprintf(msg, "Error: missing operand for instruction %s", line->mnemonic);
             add_log_entry(msg, line->line_number, 1);
             printf("%s at line %d\n", msg, line->line_number);
             return 0;
         }
-        int is_branch = (inst->operand_type == 2);
+        is_branch = (inst->operand_type == 2);
         operand = resolve_operand(line->operand, line->address, is_branch);
     }
 
-    unsigned int code = (((unsigned int)operand & 0xFFFFFF) << 8) | (inst->opcode & 0xFF);
+    code = (((unsigned int)operand & 0xFFFFFF) << 8) | (inst->opcode & 0xFF);
 
     return code;
 }
@@ -291,9 +301,9 @@ void build_output_paths(char *input,
 {
     char base[256];
     char *dot;
+    const char *filename;
 
-    /* copy input path */
-    const char *filename = strrchr(input, '/');
+    filename = strrchr(input, '/');
     if (filename == NULL) {
         filename = input;
     } else {

@@ -1,3 +1,9 @@
+/*
+ * memory.c - Load object file and memory dump
+ * Author: [YOUR FULL NAME]
+ * User ID: [YOUR USER ID]
+ * Declaration: I declare that this code is my own work.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include "cpu.h"
@@ -27,8 +33,9 @@ int load_object(const char *filename) {
 
 /* dumping memory contents */
 void dump_memory(int limit) {
+    int i;
     printf("\nMemory Dump (up to %d):\n", limit);
-    for (int i = 0; i < limit; i += 4) {
+    for (i = 0; i < limit; i += 4) {
         printf("%08X: %08X %08X %08X %08X\n", i, memory[i], memory[i+1], memory[i+2], memory[i+3]);
     }
 }

@@ -1,3 +1,9 @@
+/*
+ * parser.c - Line parser and symbol table debug print
+ * Author: [YOUR FULL NAME]
+ * User ID: [YOUR USER ID]
+ * Declaration: I declare that this code is my own work.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

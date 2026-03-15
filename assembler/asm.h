@@ -1,3 +1,9 @@
+/*
+ * asm.h - SpryzeX assembler types and constants
+ * Author: [YOUR FULL NAME]
+ * User ID: [YOUR USER ID]
+ * Declaration: I declare that this code is my own work.
+ */
 #ifndef ASM_H
 #define ASM_H
 
@@ -10,7 +16,7 @@
 typedef struct {
     char message[256];
     int line;
-    int is_error; // 1 for error, 0 for warning
+    int is_error;  /* 1 for error, 0 for warning */
 } LogEntry;
 
 /* instruction information */

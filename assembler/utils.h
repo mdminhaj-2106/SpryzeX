@@ -1,3 +1,9 @@
+/*
+ * utils.h - Assembler utilities (symbols, encode, log, paths)
+ * Author: [YOUR FULL NAME]
+ * User ID: [YOUR USER ID]
+ * Declaration: I declare that this code is my own work.
+ */
 #ifndef UTILS_H
 #define UTILS_H
 

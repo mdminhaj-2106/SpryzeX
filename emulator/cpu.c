@@ -1,3 +1,9 @@
+/*
+ * cpu.c - CPU init, instruction execution, run loop
+ * Author: [YOUR FULL NAME]
+ * User ID: [YOUR USER ID]
+ * Declaration: I declare that this code is my own work.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include "cpu.h"

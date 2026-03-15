@@ -76,10 +76,11 @@ type model struct {
         focus Focus
 
         // Build state
-        building    bool
-        running     bool
-        lastResult  *assembler.Result
-        activeTab   OutputTab
+        building       bool
+        running        bool
+        lastResult     *assembler.Result  // latest build or run (for LIVE tab + status)
+        lastBuildResult *assembler.Result // last successful build (for LOG/LISTING/OBJ paths)
+        activeTab      OutputTab
         consoleScrl int // scroll offset in console
 
         // Paths
@@ -162,6 +163,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
         case buildDoneMsg:
                 m.building = false
                 m.lastResult = msg.result
+                m.lastBuildResult = msg.result
                 if msg.asmBin != "" {
                         m.asmBin = msg.asmBin
                 }
@@ -354,8 +356,8 @@ func (m *model) triggerRun() tea.Cmd {
         // First save
         _ = m.ed.SaveFile()
 
-        // Build first if no obj
-        if m.lastResult == nil || !m.lastResult.Success {
+        // Build first if no successful build yet
+        if m.lastBuildResult == nil || !m.lastBuildResult.Success {
                 return m.triggerBuild()
         }
 
@@ -367,14 +369,14 @@ func (m *model) triggerRun() tea.Cmd {
 
         projectRoot := m.projectRoot
         emuBin := m.emuBin
-        objPath := m.lastResult.ObjPath
+        objPath := m.lastBuildResult.ObjPath
 
         return func() tea.Msg {
                 if emuBin == "" {
                         _ = buildCProject(projectRoot)
                         emuBin = assembler.FindEmulator(projectRoot)
                 }
-                result := assembler.Run(emuBin, objPath, nil)
+                result := assembler.Run(emuBin, objPath, []string{"-trace", "-before", "-after"})
                 return runDoneMsg{result}
         }
 }
@@ -779,9 +781,17 @@ func (m model) getConsoleLines() []assembler.Line {
 
         switch m.activeTab {
         case TabLog:
-                return m.loadFileLines(m.lastResult.LogPath)
+                r := m.lastBuildResult
+                if r == nil {
+                        r = m.lastResult
+                }
+                return m.loadFileLines(r.LogPath)
         case TabListing:
-                return m.loadFileLines(m.lastResult.ListingPath)
+                r := m.lastBuildResult
+                if r == nil {
+                        r = m.lastResult
+                }
+                return m.loadFileLines(r.ListingPath)
         case TabObj:
                 return m.renderObjLines()
         }
@@ -804,17 +814,21 @@ func (m model) loadFileLines(path string) []assembler.Line {
 }
 
 func (m model) renderObjLines() []assembler.Line {
-        if m.lastResult == nil || m.lastResult.ObjPath == "" {
+        r := m.lastBuildResult
+        if r == nil {
+                r = m.lastResult
+        }
+        if r == nil || r.ObjPath == "" {
                 return []assembler.Line{{Text: "No .o file available yet", Kind: assembler.LineInfo}}
         }
-        data, err := os.ReadFile(m.lastResult.ObjPath)
+        data, err := os.ReadFile(r.ObjPath)
         if err != nil {
-                return []assembler.Line{{Text: fmt.Sprintf("Cannot read %s: %v", m.lastResult.ObjPath, err), Kind: assembler.LineError}}
+                return []assembler.Line{{Text: fmt.Sprintf("Cannot read %s: %v", r.ObjPath, err), Kind: assembler.LineError}}
         }
 
         var lines []assembler.Line
         lines = append(lines, assembler.Line{
-                Text: fmt.Sprintf("Object file: %s (%d bytes)", m.lastResult.ObjPath, len(data)),
+                Text: fmt.Sprintf("Object file: %s (%d bytes)", r.ObjPath, len(data)),
                 Kind: assembler.LineInfo,
         })
         lines = append(lines, assembler.Line{Text: strings.Repeat("─", 60), Kind: assembler.LineSeparator})

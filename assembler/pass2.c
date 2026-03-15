@@ -1,3 +1,9 @@
+/*
+ * pass2.c - Pass 2: generate machine code, write .o, .lst, .log
+ * Author: [YOUR FULL NAME]
+ * User ID: [YOUR USER ID]
+ * Declaration: I declare that this code is my own work.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,6 +18,7 @@
 void pass2_generate_code(ParsedLine program[], int count)
 {
     int i;
+    unsigned int code;
     machine_count = 0;
 
     for(i = 0; i < count; i++)
@@ -21,7 +28,7 @@ void pass2_generate_code(ParsedLine program[], int count)
         if(strlen(program[i].mnemonic) == 0)
             continue;
 
-        unsigned int code = encode_instruction(&program[i]);
+        code = encode_instruction(&program[i]);
 
         program[i].machine_code = code;
         program[i].has_machine_code = 1;

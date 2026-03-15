@@ -1,3 +1,9 @@
+/*
+ * pass1.h - Pass 1 (symbol table build) interface
+ * Author: [YOUR FULL NAME]
+ * User ID: [YOUR USER ID]
+ * Declaration: I declare that this code is my own work.
+ */
 #ifndef PASS1_H
 #define PASS1_H
 

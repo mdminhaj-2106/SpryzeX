@@ -1,3 +1,9 @@
+/*
+ * cpu.h - CPU state, memory, and execution interface
+ * Author: [YOUR FULL NAME]
+ * User ID: [YOUR USER ID]
+ * Declaration: I declare that this code is my own work.
+ */
 #ifndef CPU_H
 #define CPU_H
 

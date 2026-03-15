@@ -1,3 +1,9 @@
+/*
+ * asm.c - SpryzeX two-pass assembler main and instruction table
+ * Author: [YOUR FULL NAME]
+ * User ID: [YOUR USER ID]
+ * Declaration: I declare that this code is my own work.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,54 +69,50 @@ int instruction_count = sizeof(instruction_table) / sizeof(Instruction);
 
 int main(int argc, char *argv[])
 {
+    char lines[MAX_LINES][MAX_LINE_LENGTH];
+    ParsedLine program[MAX_LINES];
+    int line_count;
+    int i;
+    char *nl;
+    char obj_path[256];
+    char log_path[256];
+    char lst_path[256];
+
     if(argc != 2)
     {
         printf("Usage: %s program.asm\n", argv[0]);
         return 1;
     }
 
-    /* Ensure output directories exist */
     mkdir("outputs", 0777);
     mkdir("logs", 0777);
     mkdir("listings", 0777);
 
-    char lines[MAX_LINES][MAX_LINE_LENGTH];
-    ParsedLine program[MAX_LINES];
-
-    int line_count = read_source(argv[1], lines);
+    line_count = read_source(argv[1], lines);
 
     if(line_count < 0)
         return 1;
 
     printf("Read %d lines\n", line_count);
 
-    int i;
-
     for(i = 0; i < line_count; i++)
     {
         program[i].line_number = i + 1;
-        /* Copy original line before strtok modifies it */
         strcpy(program[i].original_line, lines[i]);
-        /* remove newline if present */
-        char *nl = strchr(program[i].original_line, '\n');
+        nl = strchr(program[i].original_line, '\n');
         if(nl) *nl = '\0';
 
         parse_line(lines[i], &program[i]);
     }
-    
+
     printf("Parsing complete\n");
-    
+
     pass1_build_symbols(program, line_count);
 
     check_undefined_labels();
     check_unused_labels();
-    
-    printf("Pass 1 complete\n");
 
-    /* build output paths */
-    char obj_path[256];
-    char log_path[256];
-    char lst_path[256];
+    printf("Pass 1 complete\n");
 
     build_output_paths(argv[1], obj_path, log_path, lst_path);
 

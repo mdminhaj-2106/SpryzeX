@@ -1,5 +1,5 @@
 CC     = gcc
-CFLAGS = -Wall -Wextra -g -std=c99
+CFLAGS = -std=c89 -pedantic -g -W -Wall -Wpointer-arith -Wwrite-strings -Wstrict-prototypes
 GO     = go
 
 # ── Directories ───────────────────────────────────────────

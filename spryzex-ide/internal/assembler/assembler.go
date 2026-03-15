@@ -45,7 +45,8 @@ type Line struct {
 // DiagMap maps source line numbers to error messages
 type DiagMap map[int]string
 
-// FindAssembler searches for the C assembler binary
+// FindAssembler searches for the C assembler binary and returns an absolute path
+// so exec can find it regardless of current working directory or PATH.
 func FindAssembler(projectRoot string) string {
 	candidates := []string{
 		filepath.Join(projectRoot, "spryzex"),
@@ -56,6 +57,9 @@ func FindAssembler(projectRoot string) string {
 	}
 	for _, c := range candidates {
 		if _, err := os.Stat(c); err == nil {
+			if abs, err := filepath.Abs(c); err == nil {
+				return abs
+			}
 			return c
 		}
 	}
@@ -71,6 +75,9 @@ func FindEmulator(projectRoot string) string {
 	}
 	for _, c := range candidates {
 		if _, err := os.Stat(c); err == nil {
+			if abs, err := filepath.Abs(c); err == nil {
+				return abs
+			}
 			return c
 		}
 	}
@@ -87,6 +94,12 @@ func Assemble(asmBin, srcPath string, extraFlags []string) *Result {
 		return simulateAssemble(srcPath, start)
 	}
 
+	// Use absolute path so the assembler finds the file regardless of CWD
+	absPath, errAbs := filepath.Abs(srcPath)
+	if errAbs == nil {
+		srcPath = absPath
+	}
+
 	args := []string{srcPath}
 	args = append(args, extraFlags...)
 
@@ -97,12 +110,20 @@ func Assemble(asmBin, srcPath string, extraFlags []string) *Result {
 	result.Duration = time.Since(start)
 	result.Output = parseOutput(string(out))
 
-	// Derive output paths
+	// If exec failed and we have no output, show the error in console
+	if err != nil && len(result.Output) == 0 {
+		result.Output = append(result.Output, Line{
+			Text: fmt.Sprintf("Assembler failed: %v", err),
+			Kind: LineError,
+		})
+	}
+
+	// Derive output paths from project root (where asm writes: outputs/, logs/, listings/)
+	projectRoot := filepath.Dir(asmBin)
 	base := strings.TrimSuffix(filepath.Base(srcPath), filepath.Ext(srcPath))
-	dir := filepath.Dir(srcPath)
-	result.ObjPath = filepath.Join(dir, "outputs", base+".o")
-	result.ListingPath = filepath.Join(dir, "listings", base+".lst")
-	result.LogPath = filepath.Join(dir, "logs", base+".log")
+	result.ObjPath = filepath.Join(projectRoot, "outputs", base+".o")
+	result.ListingPath = filepath.Join(projectRoot, "listings", base+".lst")
+	result.LogPath = filepath.Join(projectRoot, "logs", base+".log")
 
 	// Count errors/warnings
 	for _, l := range result.Output {
@@ -146,8 +167,8 @@ func Run(emuBin, objPath string, extraFlags []string) *Result {
 		return result
 	}
 
-	args := []string{objPath}
-	args = append(args, extraFlags...)
+	args := append([]string{}, extraFlags...)
+	args = append(args, objPath)
 
 	cmd := exec.Command(emuBin, args...)
 	cmd.Dir = filepath.Dir(emuBin)
@@ -171,8 +192,13 @@ func Run(emuBin, objPath string, extraFlags []string) *Result {
 			kind = LineSuccess
 		} else if strings.Contains(line, "Error") || strings.Contains(line, "error") {
 			kind = LineError
-		} else if strings.HasPrefix(line, "  PC:") || strings.HasPrefix(line, "Trace") {
+		} else if strings.HasPrefix(line, "PC:") || strings.HasPrefix(line, "  PC:") || strings.HasPrefix(line, "Trace") ||
+			strings.HasPrefix(line, "ldc ") || strings.TrimSpace(line) == "outc" || strings.HasPrefix(line, "outc ") {
 			kind = LineTrace
+		} else if strings.Contains(line, "Memory dump") || strings.Contains(line, "Memory Dump") ||
+			strings.Contains(line, "BEFORE") || strings.Contains(line, "AFTER") ||
+			strings.Contains(line, "---") {
+			kind = LineInfo
 		}
 		result.Output = append(result.Output, Line{Text: line, Kind: kind})
 	}

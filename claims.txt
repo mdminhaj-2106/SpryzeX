@@ -1,0 +1,132 @@
+================================================================================
+SPRYZEX ASSEMBLER AND EMULATOR — SUBMISSION CLAIMS
+================================================================================
+(According to the marking scheme. * = essential / minimum for satisfactory.)
+
+--------------------------------------------------------------------------------
+GENERAL MARKS (applies to both assembler and emulator)
+--------------------------------------------------------------------------------
+
+[ ] * Correctly submitted source files with your name in them. All files have
+      name and user id at the start, along with a declaration of authorship.
+
+[ ] * Compiles without error when being pedantic (gcc -std=c89 -pedantic).
+
+[ ] * Compiles without warnings (gcc -std=c89 -pedantic -W -Wall -Wpointer-arith
+      -Wwrite-strings -Wstrict-prototypes).
+
+[ ] Consistent and sensible formatting with sensible program structure.
+
+[ ] Sensible variable, function and type names with explanatory comments.
+
+--------------------------------------------------------------------------------
+THE ASSEMBLER PART (60%)
+--------------------------------------------------------------------------------
+
+[ ] * Either uses a single process/routine for both passes, OR reads into an
+      internal form on first pass. (We do ONE of these, not both.)
+      CLAIM: Two-pass design. First pass reads source into ParsedLine array and
+      builds symbol table (pass1_build_symbols). Second pass generates machine
+      code from that internal form (pass2_generate_code). No re-read of source.
+
+[ ] * Diagnoses label errors (duplicate, missing, etc).
+      CLAIM: Duplicate labels (add_symbol), undefined labels (check_undefined_
+      labels), unused labels (check_unused_labels, warning). All via add_log_
+      entry; messages in log and stdout.
+
+[ ] * Produces listing file (at least memory dump).
+      CLAIM: write_listing_file in pass2.c produces .lst with Line, Addr,
+      Machine Code, Source per line.
+
+[ ] Advanced listing file.
+      CLAIM: Listing includes line number, address (hex), machine code (hex),
+      and original source line. Log file also includes symbol table and
+      label references.
+
+[ ] * Has a table of instruction names and expected operands.
+      CLAIM: instruction_table[] in asm.c: name, opcode, operand_type (0/1/2).
+      Used by find_instruction() and in pass1 for validation.
+
+[ ] * Assembles test program.
+      CLAIM: samples/code.asm and tests/*.asm assemble; object files in
+      outputs/; listings in listings/; logs in logs/.
+
+[ ] * Additional test programs (for both failure and success, with brief
+      explanation as comments within each test file).
+      CLAIM: tests/ contains:
+        Success: test_add.asm, test_comments.asm, test_forward_reference.asm,
+                 test_backward_reference.asm, test_unused_label.asm (warning),
+                 hello_outc.asm, loop_test.asm, basic_arithmetic.asm,
+                 bubble_sort.asm, factorial_recursion.asm, prime_check.asm,
+                 test_set.asm.
+        Failure: test_invalid_instruction.asm, test_missing_operand.asm,
+                 test_extra_operand.asm, test_undefined_label.asm,
+                 test_duplicate_label.asm, test_infinite_loop.asm (emulator).
+      Each has a brief comment at top explaining purpose.
+
+[ ] Implements and demonstrates the instruction SET.
+      CLAIM: SET in instruction_table (opcode 20, operand_type 1). In pass1:
+      "label SET value" sets symbol to value and does not advance PC. In pass2:
+      SET emits no machine word. tests/test_set.asm demonstrates SET.
+
+Bubble sort program:
+[ ] * Assembles.
+      CLAIM: tests/bubble_sort.asm assembles without errors.
+[ ] * Works.
+      CLAIM: Running ./emu outputs/bubble_sort.o produces sorted output
+      1, 2, 3, 4, 5 (one per line).
+
+--------------------------------------------------------------------------------
+THE EMULATOR PART (25%)
+--------------------------------------------------------------------------------
+
+[ ] Loads object file.
+      CLAIM: load_object() in memory.c reads 4-byte words from .o into
+      memory[]; returns instruction count; reports open failure.
+
+[ ] Produces memory dump.
+      CLAIM: dump_memory() in memory.c; -before and -after flags in emu.c
+      dump memory before/after execution.
+
+[ ] * Executes test program.
+      CLAIM: run_cpu() in cpu.c; fetch-decode-execute; HALT stops; test_add,
+      code.asm, bubble_sort, etc. run correctly.
+
+[ ] Detects errant programs.
+      CLAIM: Unknown opcode → error message and exit(1). Object file open
+      failure → return 1. Object too large → warning. Infinite loop guard
+      after 2^24 instructions → message and exit(1).
+
+--------------------------------------------------------------------------------
+TEST CASES (15%) — Three algorithms using SIMPLEX instruction set
+--------------------------------------------------------------------------------
+
+[ ] CLAIM: Three algorithm test cases implemented and working:
+
+  1. Bubble sort (tests/bubble_sort.asm)
+     Sorts array [5,4,3,2,1] in place; outputs 1, 2, 3, 4, 5.
+
+  2. Factorial (tests/factorial_recursion.asm)
+     Computes factorial(5) = 120 via iterative multiplication loop; outputs 120.
+
+  3. Prime check (tests/prime_check.asm)
+     Checks if 7 is prime using subtraction-based modulo; outputs 1 (prime).
+
+  Additional: loop_test.asm (sum 1..10 = 55), basic_arithmetic.asm (arithmetic
+  and shift), hello_outc.asm (character output). All use only the SIMPLEX
+  instruction set (ldc, adc, ldl, stl, ldnl, stnl, add, sub, shl, shr, adj,
+  a2sp, sp2a, call, return, brz, brlz, br, HALT, out, outc, data, SET).
+
+================================================================================
+EVIDENCE OF WORKING ASSEMBLER
+================================================================================
+- Run: make
+- Assemble: ./asm samples/code.asm   (or ./asm tests/bubble_sort.asm)
+- Inspect: outputs/<base>.o, listings/<base>.lst, logs/<base>.log
+- Run: ./emu outputs/<base>.o
+- For failure tests (e.g. test_undefined_label.asm): assembler reports errors,
+  no .o written; log and listing still produced.
+
+================================================================================
+END OF CLAIMS
+================================================================================
